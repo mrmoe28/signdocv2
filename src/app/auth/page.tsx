@@ -84,6 +84,7 @@ export default function AuthPage() {
 
       if (response.ok) {
         setSuccess('Account created successfully! Redirecting...');
+        login(data.user);
         setTimeout(() => {
           router.push('/dashboard');
         }, 1500);
