@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { Mail, Lock, User, Building, Phone, Eye, EyeOff } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -50,6 +52,7 @@ export default function AuthPage() {
 
       if (response.ok) {
         setSuccess('Login successful! Redirecting...');
+        login(data.user);
         setTimeout(() => {
           router.push('/dashboard');
         }, 1500);

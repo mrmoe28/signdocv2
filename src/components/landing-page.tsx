@@ -13,7 +13,9 @@ import {
   Shield,
   Clock,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 
 interface FeatureCardProps {
@@ -55,6 +57,33 @@ function StatCard({ value, label, color }: StatCardProps) {
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      {/* Navigation Header */}
+      <nav className="px-6 py-4 bg-white/80 backdrop-blur border-b border-gray-200">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
+              <span className="text-white font-bold text-sm">JI</span>
+            </div>
+            <span className="font-bold text-xl text-gray-900">JOB INVOICER</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Link href="/auth">
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-green-600">
+                <LogIn className="h-4 w-4 mr-2" />
+                Sign In
+              </Button>
+            </Link>
+            <Link href="/auth">
+              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Sign Up
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <div className="px-6 py-16">
         <div className="max-w-4xl mx-auto text-center">
@@ -76,7 +105,7 @@ export function LandingPage() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/dashboard">
+            <Link href="/auth">
               <Button size="lg" className="bg-green-600 hover:bg-green-700 text-white px-8">
                 Get Started Today
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -84,7 +113,7 @@ export function LandingPage() {
             </Link>
             <Link href="/dashboard">
               <Button variant="outline" size="lg" className="px-8">
-                View Dashboard
+                View Demo
               </Button>
             </Link>
           </div>
@@ -196,7 +225,7 @@ export function LandingPage() {
                 <p className="mb-6 opacity-90">
                   Join thousands of business owners who trust Job Invoicer for their invoicing needs.
                 </p>
-                <Link href="/dashboard">
+                <Link href="/auth">
                   <Button variant="secondary" size="lg" className="bg-white text-green-600 hover:bg-gray-100">
                     Start Your Free Trial
                   </Button>
