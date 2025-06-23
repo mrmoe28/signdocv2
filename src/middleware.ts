@@ -6,14 +6,27 @@ import { verifyToken } from '@/lib/auth';
 const protectedRoutes = ['/dashboard', '/settings'];
 
 // Define auth routes that should redirect to dashboard if already logged in
-const authRoutes = ['/auth', '/auth/forgot-password', '/auth/reset-password'];
+// const authRoutes = ['/auth', '/auth/forgot-password', '/auth/reset-password'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Get the auth token from cookies
   const token = request.cookies.get('auth-token')?.value;
-  const isAuthenticated = token ? !!verifyToken(token) : false;
+  let isAuthenticated = false;
+  
+  if (token) {
+    try {
+      const verified = verifyToken(token);
+      isAuthenticated = !!verified;
+    } catch (error) {
+      console.log('Token verification failed:', error);
+      isAuthenticated = false;
+    }
+  }
+  
+  // Debug logging
+  console.log(`Middleware: ${pathname}, Token: ${token ? 'exists' : 'none'}, Authenticated: ${isAuthenticated}`);
 
   // Handle protected routes
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
@@ -24,8 +37,9 @@ export function middleware(request: NextRequest) {
   }
 
   // Handle auth routes - redirect to dashboard if already logged in
-  if (authRoutes.some(route => pathname.startsWith(route))) {
+  if (pathname.startsWith('/auth')) {
     if (isAuthenticated) {
+      console.log('Redirecting authenticated user from auth to dashboard');
       const url = new URL('/dashboard', request.url);
       return NextResponse.redirect(url);
     }
