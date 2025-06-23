@@ -7,7 +7,6 @@ import {
   Home,
   CreditCard, 
   DollarSign,
-  Package, 
   Users, 
   Settings,
   ChevronRight
@@ -23,8 +22,6 @@ const navigationItems = [
   { id: 'invoices-payments', label: 'Invoices & Payments', icon: CreditCard, active: true },
   { id: 'payments', label: 'Payments', icon: DollarSign },
   { id: 'customers', label: 'Customers', icon: Users },
-  { id: 'items', label: 'Items', icon: Package },
-  { id: 'vendors', label: 'Item Vendors', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings, isLink: true, href: '/settings' },
 ];
 
