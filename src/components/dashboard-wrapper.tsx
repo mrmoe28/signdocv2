@@ -88,7 +88,7 @@ function DashboardContent() {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar Navigation */}
-      <SidebarNavigation activeTab={activeTab} onTabChange={handleTabChange} />
+      <SidebarNavigation activeTab={activeTab} onTabChangeAction={handleTabChange} />
       
       {/* Main Content */}
       <div className="flex-1 overflow-auto">

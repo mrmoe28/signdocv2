@@ -14,7 +14,7 @@ import {
 
 interface SidebarNavigationProps {
   activeTab: string;
-  onTabChange: (tab: string) => void;
+  onTabChangeAction: (tab: string) => void;
 }
 
 const navigationItems = [
@@ -25,7 +25,7 @@ const navigationItems = [
   { id: 'settings', label: 'Settings', icon: Settings, isLink: true, href: '/settings' },
 ];
 
-export function SidebarNavigation({ activeTab, onTabChange }: SidebarNavigationProps) {
+export function SidebarNavigation({ activeTab, onTabChangeAction }: SidebarNavigationProps) {
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-screen overflow-y-auto">
       <div className="p-4">
@@ -67,7 +67,7 @@ export function SidebarNavigation({ activeTab, onTabChange }: SidebarNavigationP
                   "w-full justify-start gap-3 h-10 px-3",
                   isActive && "bg-green-50 text-green-700 hover:bg-green-50"
                 )}
-                onClick={() => onTabChange(item.id)}
+                onClick={() => onTabChangeAction(item.id)}
               >
                 <Icon className="h-4 w-4" />
                 <span className="text-sm">{item.label}</span>
