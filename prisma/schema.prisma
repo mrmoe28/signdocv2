@@ -10,6 +10,55 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  name        String?
+  company     String?
+  phone       String?
+  role        String   @default("user")
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Password reset functionality
+  resetToken      String?
+  resetTokenExpiry DateTime?
+  
+  // Profile data
+  firstName   String?
+  lastName    String?
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  
+  // Relationships
+  invoices    Invoice[]
+  customers   Customer[]
+}
+
+model Customer {
+  id           String   @id @default(cuid())
+  email        String
+  name         String
+  phone        String?
+  company      String?
+  address      String?
+  contactPerson String?
+  customerType String   @default("residential") // residential or commercial
+  notifyByEmail Boolean @default(true)
+  notifyBySmsText Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relationships
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices     Invoice[]
+}
+
 model Invoice {
   id          String   @id @default(cuid())
   invoiceId   String   @unique
@@ -19,4 +68,10 @@ model Invoice {
   status      String   @default("Pending")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // Relationships
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 } 
