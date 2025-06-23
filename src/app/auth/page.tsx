@@ -54,7 +54,7 @@ export default function AuthPage() {
         setSuccess('Login successful! Redirecting...');
         // login(data.user);
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push('/home');
         }, 1500);
       } else {
         setError(data.error || 'Login failed');
@@ -86,7 +86,7 @@ export default function AuthPage() {
         setSuccess('Account created successfully! Redirecting...');
         // login(data.user);
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push('/home');
         }, 1500);
       } else {
         setError(data.error || 'Signup failed');
@@ -100,7 +100,7 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md mx-auto overflow-y-auto max-h-screen">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">

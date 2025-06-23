@@ -30,14 +30,14 @@ function KPICard({ title, value, subtitle, color, icon }: KPICardProps) {
 
   return (
     <Card className={`${colorClasses[color]} border-0`}>
-      <CardContent className="p-6">
+      <CardContent className="p-4 md:p-6">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="text-2xl font-bold mb-1">{value}</div>
-            <div className="text-sm opacity-90">{title}</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xl md:text-2xl font-bold mb-1">{value}</div>
+            <div className="text-xs md:text-sm opacity-90 truncate">{title}</div>
             {subtitle && <div className="text-xs opacity-80 mt-1">{subtitle}</div>}
           </div>
-          {icon && <div className="opacity-80">{icon}</div>}
+          {icon && <div className="opacity-80 ml-2 flex-shrink-0">{icon}</div>}
         </div>
       </CardContent>
     </Card>
@@ -80,21 +80,21 @@ export function DashboardContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+      <div className="bg-white px-4 md:px-6 py-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard for EKO SOLAR.LLC</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">Dashboard for EKO SOLAR.LLC</h1>
           </div>
-          <Button variant="link" className="text-blue-600 text-sm">
+          <Button variant="link" className="text-blue-600 text-sm self-start sm:self-auto">
             <ExternalLink className="h-4 w-4 mr-1" />
             News and Updates
           </Button>
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
           <KPICard
             title="Earned This Month"
             value="$650.00"
@@ -125,27 +125,29 @@ export function DashboardContent() {
         </div>
 
         {/* Date Range Selector */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-gray-600" />
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="This Year">This Year</SelectItem>
-                <SelectItem value="This Month">This Month</SelectItem>
-                <SelectItem value="This Week">This Week</SelectItem>
-                <SelectItem value="Today">Today</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-gray-600" />
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="This Year">This Year</SelectItem>
+                  <SelectItem value="This Month">This Month</SelectItem>
+                  <SelectItem value="This Week">This Week</SelectItem>
+                  <SelectItem value="Today">Today</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <span className="text-sm text-gray-600">For 01 Jan 2025 to 31 Dec 2025</span>
           </div>
-          <span className="text-sm text-gray-600">For 01 Jan 2025 to 31 Dec 2025</span>
-          <div className="ml-auto">
+          <div className="flex gap-2 lg:ml-auto">
             <Button 
               variant="outline" 
               size="sm" 
-              className={`text-blue-600 ${isCustomizeMode ? 'bg-blue-50 border-blue-300' : ''}`}
+              className={`text-blue-600 min-h-[44px] ${isCustomizeMode ? 'bg-blue-50 border-blue-300' : ''}`}
               onClick={handleCustomizeClick}
             >
               {isCustomizeMode ? 'Done' : 'customize'}
@@ -153,7 +155,7 @@ export function DashboardContent() {
             <Button 
               variant="outline" 
               size="sm" 
-              className={`ml-2 ${isDashboardEnabled ? 'bg-green-50 text-green-600 border-green-300' : 'bg-gray-50 text-gray-600'}`}
+              className={`min-h-[44px] ${isDashboardEnabled ? 'bg-green-50 text-green-600 border-green-300' : 'bg-gray-50 text-gray-600'}`}
               onClick={handleToggleEnabled}
             >
               {isDashboardEnabled ? 'ON' : 'OFF'}
@@ -162,7 +164,7 @@ export function DashboardContent() {
         </div>
 
         {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
           {/* Today's Reports */}
           <Card>
             <CardHeader>

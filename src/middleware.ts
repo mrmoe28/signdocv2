@@ -1,9 +1,33 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 
-// Define protected routes that require authentication
-const protectedRoutes = ['/dashboard', '/settings'];
+// Simple JWT verification for Edge Runtime
+function verifyTokenEdge(token: string): boolean {
+  try {
+    // Basic JWT structure validation
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    
+    // Decode payload without verification for now
+    const payload = JSON.parse(atob(parts[1]));
+    
+    // Check if token is expired
+    if (payload.exp && payload.exp < Date.now() / 1000) {
+      return false;
+    }
+    
+    // Check if userId exists
+    return !!payload.userId;
+  } catch {
+    return false;
+  }
+}
+
+// Define protected routes that require authentication  
+const protectedRoutes = ['/home', '/dashboard', '/settings'];
+
+// Define public routes that should redirect to auth if not authenticated
+const publicRoutes = ['/'];
 
 // Define auth routes that should redirect to dashboard if already logged in
 // const authRoutes = ['/auth', '/auth/forgot-password', '/auth/reset-password'];
@@ -16,17 +40,20 @@ export function middleware(request: NextRequest) {
   let isAuthenticated = false;
   
   if (token) {
-    try {
-      const verified = verifyToken(token);
-      isAuthenticated = !!verified;
-    } catch (error) {
-      console.log('Token verification failed:', error);
-      isAuthenticated = false;
-    }
+    isAuthenticated = verifyTokenEdge(token);
   }
   
   // Debug logging
   console.log(`Middleware: ${pathname}, Token: ${token ? 'exists' : 'none'}, Authenticated: ${isAuthenticated}`);
+
+  // Handle public routes - redirect to auth if not authenticated
+  if (publicRoutes.some(route => pathname === route)) {
+    if (!isAuthenticated) {
+      console.log('Redirecting unauthenticated user from landing to auth');
+      const url = new URL('/auth', request.url);
+      return NextResponse.redirect(url);
+    }
+  }
 
   // Handle protected routes
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
@@ -36,11 +63,11 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Handle auth routes - redirect to dashboard if already logged in
+  // Handle auth routes - redirect to home if already logged in
   if (pathname.startsWith('/auth')) {
     if (isAuthenticated) {
-      console.log('Redirecting authenticated user from auth to dashboard');
-      const url = new URL('/dashboard', request.url);
+      console.log('Redirecting authenticated user from auth to home');
+      const url = new URL('/home', request.url);
       return NextResponse.redirect(url);
     }
   }

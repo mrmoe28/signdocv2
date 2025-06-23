@@ -92,12 +92,14 @@ function DashboardContent() {
       
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        {activeTab === 'home' && <DashboardHome />}
-        {activeTab === 'payments' && <PaymentsPage />}
-        {activeTab === 'customers' && <CustomersPage />}
-        
-        {activeTab !== 'home' && activeTab !== 'payments' && activeTab !== 'customers' && (
-          <div className="p-6">
+        {/* Add top padding on mobile to account for menu button */}
+        <div className="pt-16 md:pt-0">
+          {activeTab === 'home' && <DashboardHome />}
+          {activeTab === 'payments' && <PaymentsPage />}
+          {activeTab === 'customers' && <CustomersPage />}
+          
+          {activeTab !== 'home' && activeTab !== 'payments' && activeTab !== 'customers' && (
+            <div className="p-4 md:p-6">
             {viewMode === 'list' && activeTab === 'invoices-payments' && (
               <InvoiceList
                 onCreateNew={handleCreateNew}
@@ -132,6 +134,7 @@ function DashboardContent() {
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

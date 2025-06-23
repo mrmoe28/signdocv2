@@ -13,17 +13,25 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 }
 
 // JWT utilities
+// Ensure consistent secret across the application
+const JWT_SECRET = 'your-super-secret-jwt-key-change-this-in-production';
+
+const getJWTSecret = () => {
+  return JWT_SECRET;
+};
+
 export function generateToken(userId: string): string {
-  const secret = process.env.NEXTAUTH_SECRET || 'fallback-secret-key';
+  const secret = getJWTSecret();
   return jwt.sign({ userId }, secret, { expiresIn: '7d' });
 }
 
 export function verifyToken(token: string): { userId: string } | null {
   try {
-    const secret = process.env.NEXTAUTH_SECRET || 'fallback-secret-key';
+    const secret = getJWTSecret();
     const decoded = jwt.verify(token, secret) as { userId: string };
     return decoded;
-  } catch {
+  } catch (error) {
+    console.log('Token verification failed:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }

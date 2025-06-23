@@ -362,19 +362,19 @@ export function InvoiceForm({ invoice, onSave, onCancel }: InvoiceFormProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={onCancel} className="text-green-600 hover:text-green-700">
+          <Button variant="ghost" size="sm" onClick={onCancel} className="text-green-600 hover:text-green-700 min-w-[44px] min-h-[44px]">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">
+            <h1 className="text-2xl md:text-3xl font-bold">
               {invoice ? `Edit Invoice# ${invoice.invoiceNumber}` : 'Create Invoice'}
             </h1>
-            <p className="text-muted-foreground">Edit your invoice.</p>
+            <p className="text-muted-foreground text-sm">Edit your invoice.</p>
           </div>
         </div>
-        <Button onClick={handleSubmit} disabled={loading} className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
+        <Button onClick={handleSubmit} disabled={loading} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 w-full md:w-auto min-h-[48px]">
           <Save className="h-4 w-4" />
           {loading ? 'Saving...' : 'Save Invoice'}
         </Button>
@@ -387,7 +387,7 @@ export function InvoiceForm({ invoice, onSave, onCancel }: InvoiceFormProps) {
             {/* Customer */}
             <div className="space-y-2">
               <Label htmlFor="customer" className="text-sm font-medium">Customer: <span className="text-red-500">*</span></Label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <div className="relative flex-1">
                   <Input
                     ref={customerInputRef}
@@ -449,11 +449,12 @@ export function InvoiceForm({ invoice, onSave, onCancel }: InvoiceFormProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-2 text-green-600 border-green-600 hover:bg-green-50"
+                  className="flex items-center gap-2 text-green-600 border-green-600 hover:bg-green-50 min-h-[44px] whitespace-nowrap"
                   onClick={() => setIsCustomerDialogOpen(true)}
                 >
                   <UserPlus className="h-4 w-4" />
-                  Add Customer
+                  <span className="hidden sm:inline">Add Customer</span>
+                  <span className="sm:hidden">Add</span>
                 </Button>
                 {selectedCustomer && (
                   <Button variant="link" size="sm" className="text-green-600 px-2">
@@ -490,7 +491,7 @@ export function InvoiceForm({ invoice, onSave, onCancel }: InvoiceFormProps) {
         {/* Invoice Details */}
         <Card>
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               {/* First Row */}
               <div className="space-y-2">
                 <Label htmlFor="invoiceType" className="text-sm font-medium">Invoice Type *</Label>

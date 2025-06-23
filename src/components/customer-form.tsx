@@ -80,14 +80,14 @@ export function CustomerForm({ isOpen, onClose, onSave, customer }: CustomerForm
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-full mx-4">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-lg font-semibold">New Customer</DialogTitle>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleClose}
-            className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+            className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 min-w-[32px] min-h-[32px]"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -97,7 +97,7 @@ export function CustomerForm({ isOpen, onClose, onSave, customer }: CustomerForm
           {/* Customer Type */}
           <div>
             <Label className="text-sm font-medium text-gray-900 mb-3 block">Customer Type</Label>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -157,7 +157,7 @@ export function CustomerForm({ isOpen, onClose, onSave, customer }: CustomerForm
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-medium text-gray-900 mb-3 block">
-                Mobile <span className="text-xs text-gray-500">(to send SMS/Text alerts to customer)</span>
+                Mobile <span className="text-xs text-gray-500 block sm:inline">(to send SMS/Text alerts to customer)</span>
               </Label>
               <Input
                 type="tel"
@@ -169,7 +169,7 @@ export function CustomerForm({ isOpen, onClose, onSave, customer }: CustomerForm
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-900 mb-3 block">
-                Phone <span className="text-xs text-gray-500">(other phone number, e.g. landline)</span>
+                Phone <span className="text-xs text-gray-500 block sm:inline">(other phone number, e.g. landline)</span>
               </Label>
               <Input
                 type="tel"
@@ -182,7 +182,7 @@ export function CustomerForm({ isOpen, onClose, onSave, customer }: CustomerForm
           </div>
 
           {/* Notification Preferences */}
-          <div className="flex gap-6">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
