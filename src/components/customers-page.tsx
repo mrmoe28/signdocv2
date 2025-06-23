@@ -35,6 +35,7 @@ import {
   Building,
   User
 } from 'lucide-react';
+import { CustomerForm } from '@/components/customer-form';
 
 interface CustomerFormData {
   name: string;
@@ -62,6 +63,7 @@ export function CustomersPage() {
     contactPerson: ''
   });
   const [formLoading, setFormLoading] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
@@ -124,36 +126,69 @@ export function CustomersPage() {
     setIsViewDialogOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.email) {
-      alert('Name and email are required');
-      return;
-    }
-
-    setFormLoading(true);
-    try {
-      const url = editingCustomer ? `/api/customers/${editingCustomer.id}` : '/api/customers';
-      const method = editingCustomer ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+  const handleOpenForm = (customer?: Customer) => {
+    if (customer) {
+      setEditingCustomer({
+        customerType: customer.company ? 'commercial' : 'residential',
+        firstName: customer.name?.split(' ')[0] || '',
+        lastName: customer.name?.split(' ').slice(1).join(' ') || '',
+        email: customer.email || '',
+        mobile: customer.phone || '',
+        phone: '',
+        notifyByEmail: true,
+        notifyBySmsText: true,
+        additionalInfo: {
+          company: customer.company || '',
+          address: customer.address || '',
+          notes: ''
+        }
       });
+    } else {
+      setEditingCustomer(null);
+    }
+    setIsFormOpen(true);
+  };
 
-      if (response.ok) {
-        await fetchCustomers();
-        handleCloseDialog();
-        alert(editingCustomer ? 'Customer updated successfully!' : 'Customer created successfully!');
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setEditingCustomer(null);
+  };
+
+  const handleSaveCustomer = async (customerData: any) => {
+    try {
+      const customerPayload = {
+        name: `${customerData.firstName} ${customerData.lastName}`.trim(),
+        email: customerData.email,
+        phone: customerData.mobile || customerData.phone,
+        company: customerData.additionalInfo?.company || '',
+        address: customerData.additionalInfo?.address || '',
+        contactPerson: `${customerData.firstName} ${customerData.lastName}`.trim(),
+        customerType: customerData.customerType,
+        notifyByEmail: customerData.notifyByEmail,
+        notifyBySmsText: customerData.notifyBySmsText
+      };
+
+      let response;
+      if (editingCustomer) {
+        response = await fetch(`/api/customers/${editingCustomer.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customerPayload),
+        });
       } else {
-        throw new Error('Failed to save customer');
+        response = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customerPayload),
+        });
       }
+
+      if (!response.ok) throw new Error('Failed to save customer');
+      
+      await fetchCustomers();
     } catch (error) {
       console.error('Error saving customer:', error);
-      alert('Failed to save customer');
-    } finally {
-      setFormLoading(false);
+      throw error;
     }
   };
 
@@ -196,108 +231,22 @@ export function CustomersPage() {
           <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
           <p className="text-gray-600">Manage your customer database</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="bg-green-600 hover:bg-green-700"
-              onClick={() => handleOpenDialog()}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Customer
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Customer name"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="customer@example.com"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="company">Company</Label>
-                <Input
-                  id="company"
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  placeholder="Company name"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="contactPerson">Contact Person</Label>
-                <Input
-                  id="contactPerson"
-                  value={formData.contactPerson}
-                  onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                  placeholder="Contact person name"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="Phone number"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Customer address"
-                  rows={3}
-                />
-              </div>
-              
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCloseDialog}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={formLoading}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                >
-                  {formLoading ? 'Saving...' : (editingCustomer ? 'Update' : 'Create')}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          className="bg-green-600 hover:bg-green-700"
+          onClick={() => handleOpenForm()}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Customer
+        </Button>
       </div>
+
+      {/* Customer Form */}
+      <CustomerForm
+        isOpen={isFormOpen}
+        onClose={handleCloseForm}
+        onSave={handleSaveCustomer}
+        customer={editingCustomer}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -402,7 +351,7 @@ export function CustomersPage() {
               {!searchTerm && (
                 <Button 
                   className="bg-green-600 hover:bg-green-700"
-                  onClick={() => handleOpenDialog()}
+                  onClick={() => handleOpenForm()}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Customer
@@ -487,7 +436,7 @@ export function CustomersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleOpenDialog(customer)}
+                            onClick={() => handleOpenForm(customer)}
                             className="text-green-600 hover:text-green-700 hover:bg-green-50"
                           >
                             <Edit className="h-4 w-4" />
@@ -572,7 +521,7 @@ export function CustomersPage() {
                 <Button
                   onClick={() => {
                     setIsViewDialogOpen(false);
-                    handleOpenDialog(viewingCustomer);
+                    handleOpenForm(viewingCustomer);
                   }}
                   className="flex-1 bg-green-600 hover:bg-green-700"
                 >

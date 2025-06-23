@@ -87,6 +87,8 @@ export async function createStripeCheckoutSession(
   description: string
 ): Promise<{ sessionUrl: string } | { error: string }> {
   try {
+    console.log('Creating payment session for invoice:', invoiceId, 'Amount:', amount);
+    
     const response = await fetch('/api/stripe/checkout', {
       method: 'POST',
       headers: {
@@ -102,12 +104,21 @@ export async function createStripeCheckoutSession(
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to create checkout session');
+      console.error('Payment API error:', response.status, data);
+      const errorMessage = data.error || `Failed to create payment session (${response.status})`;
+      return { error: errorMessage };
     }
 
+    if (!data.sessionUrl) {
+      console.error('No session URL returned from payment API');
+      return { error: 'Payment session created but no redirect URL received' };
+    }
+
+    console.log('Payment session created successfully');
     return { sessionUrl: data.sessionUrl };
   } catch (error) {
     console.error('Error creating Stripe checkout session:', error);
-    return { error: 'Failed to create payment session' };
+    const errorMessage = error instanceof Error ? error.message : 'Network error occurred';
+    return { error: `Failed to create payment session: ${errorMessage}` };
   }
 } 
