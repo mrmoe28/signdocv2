@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Invoice } from '@/lib/types';
 import { InvoiceList } from '@/components/invoice-list';
@@ -138,9 +138,5 @@ function DashboardContent() {
 }
 
 export default function DashboardWrapper() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
-      <DashboardContent />
-    </Suspense>
-  );
+  return <DashboardContent />;
 } 
