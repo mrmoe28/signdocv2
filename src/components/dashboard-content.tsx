@@ -4,14 +4,11 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { 
   TrendingUp, 
   Calendar,
   DollarSign,
   FileText,
-  Users,
-  Settings,
   ExternalLink
 } from 'lucide-react';
 
@@ -66,6 +63,19 @@ function ReportCard({ title, value, count }: ReportCardProps) {
 
 export function DashboardContent() {
   const [dateRange, setDateRange] = useState('This Year');
+  const [isCustomizeMode, setIsCustomizeMode] = useState(false);
+  const [isDashboardEnabled, setIsDashboardEnabled] = useState(true);
+
+  const handleCustomizeClick = () => {
+    setIsCustomizeMode(!isCustomizeMode);
+    // You can add more customization logic here
+    console.log('Customize mode:', !isCustomizeMode);
+  };
+
+  const handleToggleEnabled = () => {
+    setIsDashboardEnabled(!isDashboardEnabled);
+    console.log('Dashboard enabled:', !isDashboardEnabled);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -132,11 +142,21 @@ export function DashboardContent() {
           </div>
           <span className="text-sm text-gray-600">For 01 Jan 2025 to 31 Dec 2025</span>
           <div className="ml-auto">
-            <Button variant="outline" size="sm" className="text-blue-600">
-              customize
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className={`text-blue-600 ${isCustomizeMode ? 'bg-blue-50 border-blue-300' : ''}`}
+              onClick={handleCustomizeClick}
+            >
+              {isCustomizeMode ? 'Done' : 'customize'}
             </Button>
-            <Button variant="outline" size="sm" className="ml-2">
-              OFF
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className={`ml-2 ${isDashboardEnabled ? 'bg-green-50 text-green-600 border-green-300' : 'bg-gray-50 text-gray-600'}`}
+              onClick={handleToggleEnabled}
+            >
+              {isDashboardEnabled ? 'ON' : 'OFF'}
             </Button>
           </div>
         </div>
@@ -146,7 +166,7 @@ export function DashboardContent() {
           {/* Today's Reports */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Today's Reports</CardTitle>
+              <CardTitle className="text-lg">Today&apos;s Reports</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <ReportCard title="Today's Jobs" value="$0.00" count="0" />
@@ -252,7 +272,7 @@ export function DashboardContent() {
                   <div className="w-3 h-3 bg-teal-400 rounded-full"></div>
                   <span>46+ Days</span>
                   <div className="flex-1 border-b border-dashed"></div>
-                  <span>{'>'}45 Days</span>
+                  <span>&gt;45 Days</span>
                 </div>
               </div>
               <div className="h-24 bg-gray-100 rounded mt-4"></div>
