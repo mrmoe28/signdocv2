@@ -5,6 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface PaymentProvider {
   id: string;
@@ -65,6 +68,14 @@ export function OnlinePaymentsSettings() {
     }
   ]);
 
+  const [setupDialog, setSetupDialog] = useState({ open: false, provider: '' });
+  const [setupData, setSetupData] = useState({
+    apiKey: '',
+    secretKey: '',
+    webhookUrl: '',
+    merchantId: ''
+  });
+
   const toggleProvider = (id: string) => {
     setProviders(providers.map(provider => 
       provider.id === id 
@@ -74,11 +85,117 @@ export function OnlinePaymentsSettings() {
   };
 
   const handleSetup = (id: string) => {
-    console.log(`Setting up ${id}`);
+    const providerName = providers.find(p => p.id === id)?.name || id;
+    console.log(`Setting up ${providerName}`);
+    
+    // Open setup dialog
+    setSetupDialog({ open: true, provider: id });
+    
+    // Reset setup data
+    setSetupData({
+      apiKey: '',
+      secretKey: '',
+      webhookUrl: '',
+      merchantId: ''
+    });
   };
+
+  const handleSetupComplete = () => {
+    const providerId = setupDialog.provider;
+    
+    // Update provider status to configured
+    setProviders(providers.map(provider => 
+      provider.id === providerId 
+        ? { ...provider, status: 'configured' as const }
+        : provider
+    ));
+    
+    // Close dialog
+    setSetupDialog({ open: false, provider: '' });
+    
+    // Show success message
+    const providerName = providers.find(p => p.id === providerId)?.name || providerId;
+    alert(`✅ ${providerName} has been successfully configured! You can now activate it using the toggle switch.`);
+  };
+
+  const getSetupFields = (providerId: string) => {
+    switch (providerId) {
+      case 'wisetack':
+        return [
+          { key: 'apiKey', label: 'API Key', placeholder: 'Enter your Wisetack API key' },
+          { key: 'secretKey', label: 'Secret Key', placeholder: 'Enter your Wisetack secret key' }
+        ];
+      case 'square':
+        return [
+          { key: 'apiKey', label: 'Application ID', placeholder: 'Enter your Square Application ID' },
+          { key: 'secretKey', label: 'Access Token', placeholder: 'Enter your Square Access token' },
+          { key: 'webhookUrl', label: 'Webhook URL', placeholder: 'Enter webhook URL (optional)' }
+        ];
+      case 'paypal':
+        return [
+          { key: 'apiKey', label: 'Client ID', placeholder: 'Enter your PayPal Client ID' },
+          { key: 'secretKey', label: 'Client Secret', placeholder: 'Enter your PayPal Client Secret' }
+        ];
+      case 'stripe':
+        return [
+          { key: 'apiKey', label: 'Publishable Key', placeholder: 'Enter your Stripe Publishable Key' },
+          { key: 'secretKey', label: 'Secret Key', placeholder: 'Enter your Stripe Secret Key' },
+          { key: 'webhookUrl', label: 'Webhook Endpoint', placeholder: 'Enter webhook endpoint URL' }
+        ];
+      case 'authorize':
+        return [
+          { key: 'apiKey', label: 'API Login ID', placeholder: 'Enter your Authorize.net API Login ID' },
+          { key: 'secretKey', label: 'Transaction Key', placeholder: 'Enter your Transaction Key' },
+          { key: 'merchantId', label: 'Merchant ID', placeholder: 'Enter your Merchant ID' }
+        ];
+      default:
+        return [];
+    }
+  };
+
+  const currentProvider = providers.find(p => p.id === setupDialog.provider);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      {/* Setup Dialog */}
+      <Dialog open={setupDialog.open} onOpenChange={(open) => setSetupDialog({ ...setupDialog, open })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Setup {currentProvider?.name}</DialogTitle>
+            <DialogDescription>
+              Enter your {currentProvider?.name} credentials to connect your payment processor.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {getSetupFields(setupDialog.provider).map((field) => (
+              <div key={field.key} className="space-y-2">
+                <Label htmlFor={field.key}>{field.label}</Label>
+                <Input
+                  id={field.key}
+                  placeholder={field.placeholder}
+                  value={setupData[field.key as keyof typeof setupData]}
+                  onChange={(e) => setSetupData({
+                    ...setupData,
+                    [field.key]: e.target.value
+                  })}
+                  type={field.key.includes('secret') || field.key.includes('key') ? 'password' : 'text'}
+                />
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setSetupDialog({ open: false, provider: '' })}>
+              Cancel
+            </Button>
+            <Button onClick={handleSetupComplete} className="bg-green-600 hover:bg-green-700">
+              Complete Setup
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Online Payments</h1>
         <p className="text-gray-600">
