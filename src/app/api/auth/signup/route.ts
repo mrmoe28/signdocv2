@@ -67,7 +67,10 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Signup error:', error);
-    return NextResponse.json({ error: 'Failed to create account. Please try again.' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to create account. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : 'Unknown error') : undefined
+    }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }
