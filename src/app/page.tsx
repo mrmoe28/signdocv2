@@ -7,8 +7,8 @@ export default function RootPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to login page
-    router.push('/auth/login');
+    // Redirect to dashboard page
+    router.push('/dashboard');
   }, [router]);
 
   return (
@@ -25,7 +25,7 @@ export default function RootPage() {
         </h1>
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-          <p className="text-gray-600 ml-3">Redirecting to login...</p>
+          <p className="text-gray-600 ml-3">Loading dashboard...</p>
         </div>
       </div>
     </div>

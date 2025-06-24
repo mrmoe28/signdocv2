@@ -8,10 +8,9 @@ import {
   DollarSign, 
   Users, 
   BarChart3,
-  LogIn,
-  UserPlus,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  LayoutDashboard
 } from 'lucide-react';
 
 export function LandingPage() {
@@ -27,16 +26,10 @@ export function LandingPage() {
             <span className="font-bold text-xl text-gray-900">JOB INVOICER</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/auth/login">
-              <Button variant="outline" size="sm">
-                <LogIn className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Sign In</span>
-              </Button>
-            </Link>
-            <Link href="/auth/signup">
+            <Link href="/dashboard">
               <Button size="sm">
-                <UserPlus className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Get Started</span>
+                <LayoutDashboard className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Dashboard</span>
               </Button>
             </Link>
           </div>
@@ -52,15 +45,10 @@ export function LandingPage() {
           Create, send, and track invoices effortlessly. Perfect for service-based businesses looking to streamline their billing process.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/auth/signup">
+          <Link href="/dashboard">
             <Button size="lg" className="w-full sm:w-auto">
-              Start Free Trial
+              Go to Dashboard
               <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-          <Link href="/auth/login">
-            <Button variant="outline" size="lg" className="w-full sm:w-auto">
-              Sign In
             </Button>
           </Link>
         </div>
@@ -156,19 +144,19 @@ export function LandingPage() {
             <CardHeader className="text-center p-0 mb-6">
               <CardTitle className="text-2xl">Ready to Get Started?</CardTitle>
               <CardDescription>
-                Join thousands of businesses streamlining their invoicing
+                Access your invoice management dashboard
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <div className="space-y-4">
-                <Link href="/auth/signup">
+                <Link href="/dashboard">
                   <Button className="w-full" size="lg">
-                    Create Free Account
+                    Open Dashboard
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
                 <p className="text-sm text-gray-600 text-center">
-                  No credit card required • Get started in 2 minutes
+                  Start managing your invoices immediately
                 </p>
               </div>
             </CardContent>
