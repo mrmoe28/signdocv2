@@ -6,30 +6,36 @@ const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
+    const { username, email, password } = await req.json();
+    const loginIdentifier = username || email;
 
     // Validation
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    if (!loginIdentifier || !password) {
+      return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
     }
 
-    if (!isValidEmail(email)) {
-      return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 });
+    // Find user by email or username (treating username as email for now since we store emails)
+    let user;
+    if (isValidEmail(loginIdentifier)) {
+      // If it looks like an email, search by email
+      user = await prisma.user.findUnique({
+        where: { email: loginIdentifier.toLowerCase() }
+      });
+    } else {
+      // If it doesn't look like an email, try to find by email anyway (username = email)
+      user = await prisma.user.findUnique({
+        where: { email: loginIdentifier.toLowerCase() }
+      });
     }
-
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
-    });
 
     if (!user) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
     }
 
     // Verify password
     const isPasswordValid = await verifyPassword(password, user.password);
     if (!isPasswordValid) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
     }
 
     // Generate token and create session
