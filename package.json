@@ -49,11 +49,5 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"
-  },
-  "environmentVariables": {
-    "DATABASE_URL": "file:./dev.db",
-    "STRIPE_SECRET_KEY": "sk_test_placeholder",
-    "STRIPE_WEBHOOK_SECRET": "whsec_placeholder",
-    "NEXT_PUBLIC_BASE_URL": "https://job-invoicer-ard8hnztn-mrmo28s-projects.vercel.app"
   }
 }

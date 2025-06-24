@@ -24,13 +24,13 @@ function verifyTokenEdge(token: string): boolean {
 }
 
 // Define protected routes that require authentication  
-const protectedRoutes = ['/home', '/dashboard', '/settings'];
+const protectedRoutes = ['/dashboard', '/settings', '/home'];
 
-// Define public routes that should redirect to auth if not authenticated
+// Define public routes that should redirect to login if not authenticated
 const publicRoutes = ['/'];
 
 // Define auth routes that should redirect to dashboard if already logged in
-// const authRoutes = ['/auth', '/auth/forgot-password', '/auth/reset-password'];
+const authRoutes = ['/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/reset-password'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -46,11 +46,16 @@ export function middleware(request: NextRequest) {
   // Debug logging
   console.log(`Middleware: ${pathname}, Token: ${token ? 'exists' : 'none'}, Authenticated: ${isAuthenticated}`);
 
-  // Handle public routes - redirect to auth if not authenticated
+  // Handle public routes - redirect to login if not authenticated
   if (publicRoutes.some(route => pathname === route)) {
     if (!isAuthenticated) {
-      console.log('Redirecting unauthenticated user from landing to auth');
-      const url = new URL('/auth', request.url);
+      console.log('Redirecting unauthenticated user from landing to login');
+      const url = new URL('/auth/login', request.url);
+      return NextResponse.redirect(url);
+    } else {
+      // If authenticated, redirect to dashboard
+      console.log('Redirecting authenticated user from landing to dashboard');
+      const url = new URL('/dashboard', request.url);
       return NextResponse.redirect(url);
     }
   }
@@ -58,16 +63,17 @@ export function middleware(request: NextRequest) {
   // Handle protected routes
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
     if (!isAuthenticated) {
-      const url = new URL('/auth', request.url);
+      console.log('Redirecting unauthenticated user from protected route to login');
+      const url = new URL('/auth/login', request.url);
       return NextResponse.redirect(url);
     }
   }
 
-  // Handle auth routes - redirect to home if already logged in
-  if (pathname.startsWith('/auth')) {
+  // Handle auth routes - redirect to dashboard if already logged in
+  if (authRoutes.some(route => pathname.startsWith(route))) {
     if (isAuthenticated) {
-      console.log('Redirecting authenticated user from auth to home');
-      const url = new URL('/home', request.url);
+      console.log('Redirecting authenticated user from auth to dashboard');
+      const url = new URL('/dashboard', request.url);
       return NextResponse.redirect(url);
     }
   }
