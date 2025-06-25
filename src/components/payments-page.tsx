@@ -20,7 +20,8 @@ import {
   Clock,
   XCircle,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  Trash2
 } from 'lucide-react';
 
 interface Payment {
@@ -86,7 +87,7 @@ function PaymentStatusBadge({ status }: { status: Payment['status'] }) {
 }
 
 export function PaymentsPage() {
-  const [payments] = useState<Payment[]>(mockPayments);
+  const [payments, setPayments] = useState<Payment[]>(mockPayments);
   const [loading, setLoading] = useState(false);
 
   const handleProcessPayment = async (payment: Payment) => {
@@ -103,13 +104,28 @@ export function PaymentsPage() {
       if ('sessionUrl' in result) {
         window.location.href = result.sessionUrl;
       } else {
-        alert(`Error: ${result.error}`);
+        console.error('Payment error:', result.error);
+        
+        // Handle specific Stripe configuration error
+        if (result.error.includes('not configured')) {
+          alert('Payment processing is currently being set up. Please contact support for assistance with payments.');
+        } else if (result.error.includes('connection to Stripe')) {
+          alert('Unable to connect to payment processor. Please try again later or contact support.');
+        } else {
+          alert(`Payment Error: ${result.error}`);
+        }
       }
     } catch (error) {
       console.error('Payment processing error:', error);
-      alert('Failed to process payment');
+      alert('Failed to process payment. Please try again or contact support.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeletePayment = (paymentId: string) => {
+    if (confirm('Are you sure you want to delete this payment entry? This action cannot be undone.')) {
+      setPayments(payments.filter(payment => payment.id !== paymentId));
     }
   };
 
@@ -246,6 +262,16 @@ export function PaymentsPage() {
                           View in Stripe
                         </Button>
                       )}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeletePayment(payment.id)}
+                        className="flex items-center gap-1"
+                        title="Delete payment entry"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>

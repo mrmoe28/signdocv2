@@ -72,9 +72,17 @@ export async function GET(
       discount: 0
     };
 
+    // Default company info (in a real app, this would come from user settings)
+    const companyInfo = {
+      name: 'Your Company Name',
+      address: '123 Business St, City, State 12345',
+      phone: '(555) 123-4567',
+      email: 'contact@yourcompany.com'
+    };
+
     // Generate PDF buffer
     const pdfBuffer = await renderToBuffer(
-      InvoicePDF({ invoice: invoiceData })
+      <InvoicePDF invoice={invoiceData} companyInfo={companyInfo} />
     );
 
     // Return PDF as response

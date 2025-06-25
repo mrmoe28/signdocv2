@@ -7,6 +7,7 @@ import { InvoiceList } from '@/components/invoice-list';
 import { InvoiceForm } from '@/components/invoice-form';
 import { InvoiceView } from '@/components/invoice-view';
 import { SidebarNavigation } from '@/components/sidebar-navigation';
+import { TopNavigation } from '@/components/top-navigation';
 import { DashboardContent as DashboardHome } from '@/components/dashboard-content';
 import { PaymentsPage } from '@/components/payments-page';
 import { CustomersPage } from '@/components/customers-page';
@@ -86,54 +87,59 @@ function DashboardContent() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar Navigation */}
-      <SidebarNavigation activeTab={activeTab} onTabChangeAction={handleTabChange} />
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Top Navigation */}
+      <TopNavigation activeTab={activeTab} onTabChange={handleTabChange} />
       
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        {/* Add top padding on mobile to account for menu button */}
-        <div className="pt-16 md:pt-0">
-          {activeTab === 'home' && <DashboardHome />}
-          {activeTab === 'payments' && <PaymentsPage />}
-          {activeTab === 'customers' && <CustomersPage />}
-          
-          {activeTab !== 'home' && activeTab !== 'payments' && activeTab !== 'customers' && (
-            <div className="p-4 md:p-6">
-            {viewMode === 'list' && activeTab === 'invoices-payments' && (
-              <InvoiceList
-                onCreateNew={handleCreateNew}
-                onEditInvoice={handleEditInvoice}
-                onViewInvoice={handleViewInvoice}
-              />
-            )}
-
-            {(viewMode === 'create' || viewMode === 'edit') && (
-              <InvoiceForm
-                invoice={selectedInvoice || undefined}
-                onSave={handleSaveInvoice}
-                onCancel={handleCancel}
-              />
-            )}
-
-            {viewMode === 'view' && selectedInvoice && (
-              <InvoiceView
-                invoice={selectedInvoice}
-                onEdit={() => handleEditInvoice(selectedInvoice)}
-                onBack={handleCancel}
-              />
-            )}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar Navigation */}
+        <SidebarNavigation activeTab={activeTab} onTabChangeAction={handleTabChange} />
+        
+        {/* Main Content */}
+        <div className="flex-1 overflow-auto">
+          {/* Add top padding on mobile to account for menu button */}
+          <div className="pt-16 md:pt-0">
+            {activeTab === 'home' && <DashboardHome />}
+            {activeTab === 'payments' && <PaymentsPage />}
+            {activeTab === 'customers' && <CustomersPage />}
             
-            {activeTab !== 'invoices-payments' && (
-              <div className="text-center py-20">
-                <h2 className="text-2xl font-bold text-gray-400 mb-4">
-                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1).replace('-', ' & ')}
-                </h2>
-                <p className="text-gray-500">This section is coming soon.</p>
-              </div>
-            )}
+            {activeTab !== 'home' && activeTab !== 'payments' && activeTab !== 'customers' && (
+              <div className="p-4 md:p-6">
+              {viewMode === 'list' && activeTab === 'invoices-payments' && (
+                <InvoiceList
+                  onCreateNew={handleCreateNew}
+                  onEditInvoice={handleEditInvoice}
+                  onViewInvoice={handleViewInvoice}
+                />
+              )}
+
+              {(viewMode === 'create' || viewMode === 'edit') && (
+                <InvoiceForm
+                  invoice={selectedInvoice || undefined}
+                  onSave={handleSaveInvoice}
+                  onCancel={handleCancel}
+                />
+              )}
+
+              {viewMode === 'view' && selectedInvoice && (
+                <InvoiceView
+                  invoice={selectedInvoice}
+                  onEdit={() => handleEditInvoice(selectedInvoice)}
+                  onBack={handleCancel}
+                />
+              )}
+              
+              {activeTab !== 'invoices-payments' && (
+                <div className="text-center py-20">
+                  <h2 className="text-2xl font-bold text-gray-400 mb-4">
+                    {activeTab.charAt(0).toUpperCase() + activeTab.slice(1).replace('-', ' & ')}
+                  </h2>
+                  <p className="text-gray-500">This section is coming soon.</p>
+                </div>
+              )}
+            </div>
+          )}
           </div>
-        )}
         </div>
       </div>
     </div>

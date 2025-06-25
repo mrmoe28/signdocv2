@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 import { 
   Calendar,
   TrendingUp,
@@ -18,7 +19,9 @@ import {
   User,
   HelpCircle,
   LogOut,
-  Home
+  Home,
+  Shield,
+  CreditCard
 } from 'lucide-react';
 
 interface TopNavigationProps {
@@ -40,6 +43,49 @@ const navigationItems = [
 
 export function TopNavigation({ activeTab, onTabChange }: TopNavigationProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleProfileMenuClick = (action: string) => {
+    setShowProfileMenu(false);
+    
+    switch (action) {
+      case 'profile':
+        router.push('/profile');
+        break;
+      case 'account-settings':
+        router.push('/profile/account-settings');
+        break;
+      case 'security':
+        router.push('/profile/security');
+        break;
+      case 'billing':
+        router.push('/profile/billing');
+        break;
+      case 'help':
+        router.push('/profile/help');
+        break;
+      case 'logout':
+        router.push('/clear-cookies');
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
     <div className="bg-white border-b border-gray-200 px-6 py-3">
@@ -94,7 +140,7 @@ export function TopNavigation({ activeTab, onTabChange }: TopNavigationProps) {
           </Button>
 
           {/* User Avatar and Menu */}
-          <div className="relative">
+          <div className="relative" ref={profileMenuRef}>
             <Button
               variant="ghost"
               size="sm"
@@ -109,21 +155,64 @@ export function TopNavigation({ activeTab, onTabChange }: TopNavigationProps) {
             </Button>
 
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
-                <Button variant="ghost" className="w-full justify-start px-4 py-2 text-sm">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                <div className="px-4 py-2 border-b border-gray-100">
+                  <div className="text-sm font-medium text-gray-900">Edward Harrison</div>
+                  <div className="text-xs text-gray-500">ekosolarize@gmail.com</div>
+                </div>
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start px-4 py-2 text-sm"
+                  onClick={() => handleProfileMenuClick('profile')}
+                >
                   <User className="h-4 w-4 mr-2" />
                   Profile
                 </Button>
-                <Button variant="ghost" className="w-full justify-start px-4 py-2 text-sm">
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start px-4 py-2 text-sm"
+                  onClick={() => handleProfileMenuClick('account-settings')}
+                >
                   <Settings className="h-4 w-4 mr-2" />
-                  Settings
+                  Account Settings
                 </Button>
-                <Button variant="ghost" className="w-full justify-start px-4 py-2 text-sm">
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start px-4 py-2 text-sm"
+                  onClick={() => handleProfileMenuClick('security')}
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Security
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start px-4 py-2 text-sm"
+                  onClick={() => handleProfileMenuClick('billing')}
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Billing
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start px-4 py-2 text-sm"
+                  onClick={() => handleProfileMenuClick('help')}
+                >
                   <HelpCircle className="h-4 w-4 mr-2" />
-                  Help
+                  Help & Support
                 </Button>
+                
                 <hr className="my-1" />
-                <Button variant="ghost" className="w-full justify-start px-4 py-2 text-sm text-red-600">
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => handleProfileMenuClick('logout')}
+                >
                   <LogOut className="h-4 w-4 mr-2" />
                   Log out
                 </Button>

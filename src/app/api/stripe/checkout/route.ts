@@ -5,7 +5,8 @@ import Stripe from 'stripe';
 const getStripeInstance = () => {
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   
-  if (!stripeKey || stripeKey === 'sk_test_dummy_key') {
+  if (!stripeKey || stripeKey === 'sk_test_dummy_key' || stripeKey.length < 20) {
+    console.log('Stripe not configured - using dummy key or missing real key');
     return null;
   }
   
@@ -24,8 +25,10 @@ export async function POST(req: NextRequest) {
     const stripe = getStripeInstance();
     
     if (!stripe) {
+      console.log('Stripe checkout request blocked - payment processing not configured');
       return NextResponse.json({ 
-        error: 'Payment processing not configured. Please contact support to enable payments.' 
+        error: 'Payment processing is not configured yet. Please contact support to enable payments.',
+        code: 'STRIPE_NOT_CONFIGURED'
       }, { status: 503 });
     }
 
