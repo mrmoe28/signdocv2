@@ -11,6 +11,7 @@ import { TopNavigation } from '@/components/top-navigation';
 import { DashboardContent as DashboardHome } from '@/components/dashboard-content';
 import { PaymentsPage } from '@/components/payments-page';
 import { CustomersPage } from '@/components/customers-page';
+import { SchedulePage } from '@/components/schedule-page';
 
 type ViewMode = 'list' | 'create' | 'edit' | 'view';
 
@@ -100,10 +101,11 @@ function DashboardContent() {
           {/* Add top padding on mobile to account for menu button */}
           <div className="pt-16 md:pt-0">
             {activeTab === 'home' && <DashboardHome />}
+            {activeTab === 'schedule' && <SchedulePage />}
             {activeTab === 'payments' && <PaymentsPage />}
             {activeTab === 'customers' && <CustomersPage />}
             
-            {activeTab !== 'home' && activeTab !== 'payments' && activeTab !== 'customers' && (
+            {activeTab !== 'home' && activeTab !== 'schedule' && activeTab !== 'payments' && activeTab !== 'customers' && (
               <div className="p-4 md:p-6">
               {viewMode === 'list' && activeTab === 'invoices-payments' && (
                 <InvoiceList
