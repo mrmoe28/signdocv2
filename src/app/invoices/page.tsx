@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, FileText, DollarSign, Calendar, Eye, Edit, Trash2, Download, Mail, Send } from 'lucide-react';
+import { Plus, Search, FileText, DollarSign, Calendar, Eye, Edit, Trash2, Download, Mail } from 'lucide-react';
 
 interface Invoice {
   id: string;
@@ -27,7 +26,6 @@ interface Invoice {
 }
 
 export default function InvoicesPage() {
-  const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,10 +47,57 @@ export default function InvoicesPage() {
       } else {
         setError('Failed to load invoices');
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
       setError('Network error. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSendEmail = async (invoiceId: string) => {
+    try {
+      setEmailLoading(invoiceId);
+      const response = await fetch(`/api/invoices/${invoiceId}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        alert('Invoice email sent successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Failed to send email: ${error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Failed to send email. Please try again.');
+    } finally {
+      setEmailLoading(null);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm('Are you sure you want to delete this invoice?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setInvoices(invoices.filter(inv => inv.id !== invoiceId));
+        alert('Invoice deleted successfully!');
+      } else {
+        alert('Failed to delete invoice. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      alert('Failed to delete invoice. Please try again.');
     }
   };
 
@@ -267,9 +312,14 @@ export default function InvoicesPage() {
                             variant="outline" 
                             size="sm"
                             onClick={() => handleSendEmail(invoice.id)}
+                            disabled={emailLoading === invoice.id}
                             title="Send Email"
                           >
-                            <Mail className="h-4 w-4" />
+                            {emailLoading === invoice.id ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                            ) : (
+                              <Mail className="h-4 w-4" />
+                            )}
                           </Button>
                           <Button variant="outline" size="sm" title="View Invoice">
                             <Eye className="h-4 w-4" />
@@ -277,7 +327,12 @@ export default function InvoicesPage() {
                           <Button variant="outline" size="sm" title="Edit Invoice">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm" title="Delete Invoice">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleDeleteInvoice(invoice.id)}
+                            title="Delete Invoice"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
