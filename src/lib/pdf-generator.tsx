@@ -326,7 +326,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, companyInfo }) => {
                 <Text style={styles.tableCellText}>{item.description}</Text>
               </View>
               <View style={styles.tableColQuantity}>
-                <Text style={styles.tableCellText}>{item.quantity}</Text>
+                <Text style={styles.tableCellText}>{item.quantity.toString()}</Text>
               </View>
               <View style={styles.tableColRate}>
                 <Text style={styles.tableCellText}>{formatCurrency(item.rate)}</Text>
@@ -348,14 +348,14 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, companyInfo }) => {
             
             {invoice.tax && invoice.tax > 0 && (
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Tax ({invoice.tax}%):</Text>
+                <Text style={styles.totalLabel}>Tax ({invoice.tax.toString()}%):</Text>
                 <Text style={styles.totalValue}>{formatCurrency(invoice.taxAmount || 0)}</Text>
               </View>
             )}
             
             {invoice.discount && invoice.discount > 0 && (
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Discount ({invoice.discount}%):</Text>
+                <Text style={styles.totalLabel}>Discount ({invoice.discount.toString()}%):</Text>
                 <Text style={styles.totalValue}>-{formatCurrency(invoice.discountAmount || 0)}</Text>
               </View>
             )}

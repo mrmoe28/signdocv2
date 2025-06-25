@@ -80,10 +80,6 @@ export default function InvoicesPage() {
   };
 
   const handleDeleteInvoice = async (invoiceId: string) => {
-    if (!confirm('Are you sure you want to delete this invoice?')) {
-      return;
-    }
-
     try {
       const response = await fetch(`/api/invoices/${invoiceId}`, {
         method: 'DELETE',
@@ -91,13 +87,11 @@ export default function InvoicesPage() {
 
       if (response.ok) {
         setInvoices(invoices.filter(inv => inv.id !== invoiceId));
-        alert('Invoice deleted successfully!');
       } else {
-        alert('Failed to delete invoice. Please try again.');
+        console.error('Failed to delete invoice');
       }
     } catch (error) {
       console.error('Error deleting invoice:', error);
-      alert('Failed to delete invoice. Please try again.');
     }
   };
 
