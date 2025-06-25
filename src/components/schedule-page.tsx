@@ -181,6 +181,13 @@ export function SchedulePage() {
   const handleCreateEvent = () => {
     // Here you would typically save to your backend
     console.log('Creating new event:', newEvent);
+    
+    // Add validation
+    if (!newEvent.title || !newEvent.customer || !newEvent.date || !newEvent.time) {
+      alert('Please fill in all required fields');
+      return;
+    }
+    
     setShowNewEventForm(false);
     setNewEvent({
       title: '',
@@ -195,6 +202,8 @@ export function SchedulePage() {
       estimatedValue: ''
     });
   };
+
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -216,7 +225,7 @@ export function SchedulePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Schedule</h1>
-          <p className="text-gray-600">Manage your appointments and job schedules</p>
+          <p className="text-gray-600">Manage your work schedule and appointments</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -242,6 +251,38 @@ export function SchedulePage() {
           </Button>
         </div>
       </div>
+
+      {/* Today's Schedule Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Today&apos;s Schedule
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {mockEvents.filter(e => e.date === new Date().toISOString().split('T')[0]).length}
+              </div>
+              <div className="text-sm text-blue-600">Appointments Today</div>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">
+                {mockEvents.filter(e => e.status === 'In Progress').length}
+              </div>
+              <div className="text-sm text-yellow-600">In Progress</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                ${mockEvents.filter(e => e.status === 'Completed' && e.estimatedValue).reduce((sum, e) => sum + (e.estimatedValue || 0), 0).toLocaleString()}
+              </div>
+              <div className="text-sm text-green-600">Revenue This Week</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Filters and Search */}
       <div className="flex items-center gap-4">

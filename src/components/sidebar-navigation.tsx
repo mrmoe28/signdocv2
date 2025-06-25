@@ -14,7 +14,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  Plus
+  Plus,
+  Calendar
 } from 'lucide-react';
 
 interface SidebarNavigationProps {
@@ -26,6 +27,7 @@ const navigationItems = [
   { id: 'home', label: 'Dashboard', icon: Home },
   { id: 'invoices', label: 'All Invoices', icon: FileText, isLink: true, href: '/invoices' },
   { id: 'create-invoice', label: 'Create Invoice', icon: Plus, isLink: true, href: '/invoices/create' },
+  { id: 'schedule', label: 'Schedule', icon: Calendar, isLink: true, href: '/schedule' },
   { id: 'invoices-payments', label: 'Invoices & Payments', icon: CreditCard, active: true },
   { id: 'payments', label: 'Payments', icon: DollarSign },
   { id: 'customers', label: 'Customers', icon: Users },
