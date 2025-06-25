@@ -14,6 +14,7 @@ import { CustomersPage } from '@/components/customers-page';
 import { SchedulePage } from '@/components/schedule-page';
 import { SalesPage } from '@/components/sales-page';
 import { ExpensesPage } from '@/components/expenses-page';
+import { LeadsPage } from '@/components/leads-page';
 
 type ViewMode = 'list' | 'create' | 'edit' | 'view';
 
@@ -106,10 +107,11 @@ function DashboardContent() {
             {activeTab === 'schedule' && <SchedulePage />}
             {activeTab === 'sales' && <SalesPage />}
             {activeTab === 'expenses' && <ExpensesPage />}
+            {activeTab === 'leads' && <LeadsPage />}
             {activeTab === 'payments' && <PaymentsPage />}
             {activeTab === 'customers' && <CustomersPage />}
             
-            {activeTab !== 'home' && activeTab !== 'schedule' && activeTab !== 'sales' && activeTab !== 'expenses' && activeTab !== 'payments' && activeTab !== 'customers' && (
+            {activeTab !== 'home' && activeTab !== 'schedule' && activeTab !== 'sales' && activeTab !== 'expenses' && activeTab !== 'leads' && activeTab !== 'payments' && activeTab !== 'customers' && (
               <div className="p-4 md:p-6">
               {viewMode === 'list' && activeTab === 'invoices-payments' && (
                 <InvoiceList
