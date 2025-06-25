@@ -15,6 +15,10 @@ import { SchedulePage } from '@/components/schedule-page';
 import { SalesPage } from '@/components/sales-page';
 import { ExpensesPage } from '@/components/expenses-page';
 import { LeadsPage } from '@/components/leads-page';
+import { MarketingPage } from '@/components/marketing-page';
+import { AutomationPage } from '@/components/automation-page';
+import { ReportsPage } from '@/components/reports-page';
+import { MorePage } from '@/components/more-page';
 
 type ViewMode = 'list' | 'create' | 'edit' | 'view';
 
@@ -108,10 +112,14 @@ function DashboardContent() {
             {activeTab === 'sales' && <SalesPage />}
             {activeTab === 'expenses' && <ExpensesPage />}
             {activeTab === 'leads' && <LeadsPage />}
+            {activeTab === 'marketing' && <MarketingPage />}
+            {activeTab === 'automation' && <AutomationPage />}
+            {activeTab === 'reports' && <ReportsPage />}
+            {activeTab === 'more' && <MorePage />}
             {activeTab === 'payments' && <PaymentsPage />}
             {activeTab === 'customers' && <CustomersPage />}
             
-            {activeTab !== 'home' && activeTab !== 'schedule' && activeTab !== 'sales' && activeTab !== 'expenses' && activeTab !== 'leads' && activeTab !== 'payments' && activeTab !== 'customers' && (
+            {activeTab !== 'home' && activeTab !== 'schedule' && activeTab !== 'sales' && activeTab !== 'expenses' && activeTab !== 'leads' && activeTab !== 'marketing' && activeTab !== 'automation' && activeTab !== 'reports' && activeTab !== 'more' && activeTab !== 'payments' && activeTab !== 'customers' && (
               <div className="p-4 md:p-6">
               {viewMode === 'list' && activeTab === 'invoices-payments' && (
                 <InvoiceList
