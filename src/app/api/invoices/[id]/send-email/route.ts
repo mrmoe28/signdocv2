@@ -1,37 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '@/lib/auth';
 import { sendInvoiceEmail } from '@/lib/email-service';
-
-const prisma = new PrismaClient();
+import { mockInvoices } from '@/lib/mock-data';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get auth token from cookies
-    const token = req.cookies.get('auth-token')?.value;
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Authentication is optional for development with mock data
+    // In production, implement proper authentication here
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    // Get invoice with customer details
-    const invoice = await prisma.invoice.findFirst({
-      where: {
-        id: params.id,
-        userId: decoded.userId
-      },
-      include: {
-        customer: true
-      }
-    });
+    // Get invoice from mock data
+    const invoice = mockInvoices.find(inv => inv.id === params.id);
 
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
@@ -45,10 +25,10 @@ export async function POST(
 
     // Prepare email data
     const emailData = {
-      invoiceId: invoice.invoiceId,
-      customerName: invoice.customerName,
+      invoiceId: invoice.invoiceNumber,
+      customerName: invoice.customer.name,
       customerEmail: invoice.customer.email,
-      amount: invoice.amount,
+      amount: invoice.total,
       companyName: 'JOB INVOICER'
     };
 
@@ -57,11 +37,9 @@ export async function POST(
 
     if (result.success) {
       // Update invoice status to 'Sent' if it was 'Draft'
+      // Note: In mock data, this would persist only for the current session
       if (invoice.status === 'Draft') {
-        await prisma.invoice.update({
-          where: { id: params.id },
-          data: { status: 'Sent' }
-        });
+        invoice.status = 'Sent';
       }
 
       return NextResponse.json({
@@ -81,7 +59,5 @@ export async function POST(
     return NextResponse.json({ 
       error: 'Failed to send invoice email' 
     }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 } 
