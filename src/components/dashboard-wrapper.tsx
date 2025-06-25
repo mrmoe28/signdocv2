@@ -13,6 +13,7 @@ import { PaymentsPage } from '@/components/payments-page';
 import { CustomersPage } from '@/components/customers-page';
 import { SchedulePage } from '@/components/schedule-page';
 import { SalesPage } from '@/components/sales-page';
+import { ExpensesPage } from '@/components/expenses-page';
 
 type ViewMode = 'list' | 'create' | 'edit' | 'view';
 
@@ -104,10 +105,11 @@ function DashboardContent() {
             {activeTab === 'home' && <DashboardHome />}
             {activeTab === 'schedule' && <SchedulePage />}
             {activeTab === 'sales' && <SalesPage />}
+            {activeTab === 'expenses' && <ExpensesPage />}
             {activeTab === 'payments' && <PaymentsPage />}
             {activeTab === 'customers' && <CustomersPage />}
             
-            {activeTab !== 'home' && activeTab !== 'schedule' && activeTab !== 'sales' && activeTab !== 'payments' && activeTab !== 'customers' && (
+            {activeTab !== 'home' && activeTab !== 'schedule' && activeTab !== 'sales' && activeTab !== 'expenses' && activeTab !== 'payments' && activeTab !== 'customers' && (
               <div className="p-4 md:p-6">
               {viewMode === 'list' && activeTab === 'invoices-payments' && (
                 <InvoiceList
