@@ -18,9 +18,11 @@ import {
   Camera
 } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
+import { FileUpload } from '@/components/ui/file-upload';
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [profileData, setProfileData] = useState({
     firstName: 'Edward',
     lastName: 'Harrison',
@@ -33,7 +35,8 @@ export default function ProfilePage() {
     city: 'Atlanta',
     state: 'GA',
     zipCode: '30309',
-    website: 'www.ekosolar.com'
+    website: 'www.ekosolar.com',
+    companyLogo: '/sample-logo.svg' // Base64 string or URL
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -43,9 +46,32 @@ export default function ProfilePage() {
     }));
   };
 
+  const handleLogoUpload = (file: File | null) => {
+    if (file) {
+      setLogoFile(file);
+      // Convert to base64 for preview and storage
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setProfileData(prev => ({
+          ...prev,
+          companyLogo: result
+        }));
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setLogoFile(null);
+      setProfileData(prev => ({
+        ...prev,
+        companyLogo: ''
+      }));
+    }
+  };
+
   const handleSave = () => {
     // Here you would typically save to your backend
     console.log('Saving profile data:', profileData);
+    console.log('Logo file:', logoFile);
     setIsEditing(false);
     // Show success message
     alert('Profile updated successfully!');
@@ -228,6 +254,20 @@ export default function ProfilePage() {
                       disabled={!isEditing}
                     />
                   </div>
+                </div>
+
+                {/* Company Logo */}
+                <div>
+                  <Label>Company Logo</Label>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Upload your company logo to display on invoices and PDF documents
+                  </p>
+                  <FileUpload
+                    onFileSelect={handleLogoUpload}
+                    currentImage={profileData.companyLogo}
+                    disabled={!isEditing}
+                    maxSize={2}
+                  />
                 </div>
 
                 <div>

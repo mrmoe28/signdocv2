@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   page: {
@@ -18,6 +18,14 @@ const styles = StyleSheet.create({
   },
   companyInfo: {
     flex: 1,
+  },
+  logoContainer: {
+    marginBottom: 10,
+  },
+  logo: {
+    width: 80,
+    height: 60,
+    objectFit: 'contain',
   },
   companyName: {
     fontSize: 24,
@@ -218,6 +226,7 @@ interface InvoicePDFProps {
     address: string;
     phone: string;
     email: string;
+    logo?: string;
   };
 }
 
@@ -227,6 +236,7 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, companyInfo }) => {
     address: '123 Business Street\nCity, State 12345',
     phone: '(555) 123-4567',
     email: 'info@jobinvoicer.com',
+    logo: undefined,
   };
 
   const company = companyInfo || defaultCompanyInfo;
@@ -252,6 +262,11 @@ const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, companyInfo }) => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.companyInfo}>
+            {company.logo && (
+              <View style={styles.logoContainer}>
+                <Image src={company.logo} style={styles.logo} />
+              </View>
+            )}
             <Text style={styles.companyName}>{company.name}</Text>
             <Text style={styles.billToText}>{company.address}</Text>
             <Text style={styles.billToText}>{company.phone}</Text>
@@ -394,6 +409,7 @@ interface PDFDownloadButtonProps {
     address: string;
     phone: string;
     email: string;
+    logo?: string;
   };
   fileName?: string;
   children: React.ReactNode;
