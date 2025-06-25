@@ -1,73 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '@/lib/auth';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { InvoicePDF } from '@/lib/pdf-generator';
-
-const prisma = new PrismaClient();
+import { mockInvoices } from '@/lib/mock-data';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Get auth token from cookies (optional for development)
-    const token = req.cookies.get('auth-token')?.value;
-    let userId = null;
-    
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        userId = decoded.userId;
-      }
-    }
+    // Authentication is optional for development with mock data
+    // In production, implement proper authentication here
 
-    // Get invoice with customer details
-    // In development, allow access to all invoices if no auth token
-    const invoice = await prisma.invoice.findFirst({
-      where: userId ? {
-        id: params.id,
-        userId: userId
-      } : {
-        id: params.id
-      },
-      include: {
-        customer: true
-      }
-    });
+    // Await params in Next.js 15
+    const { id } = await params;
+
+    // Get invoice from mock data
+    const invoice = mockInvoices.find(inv => inv.id === id);
 
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
-    // Mock line items for now (in real app, you'd store these in database)
-    const mockLineItems = [
-      {
-        description: 'Professional Services',
-        quantity: 1,
-        rate: invoice.amount,
-        amount: invoice.amount
-      }
-    ];
+    // Convert invoice items to line items for PDF
+    const lineItems = invoice.items.map(item => ({
+      description: item.description,
+      quantity: item.quantity,
+      rate: item.rate,
+      amount: item.quantity * item.rate
+    }));
 
     // Prepare invoice data for PDF
     const invoiceData = {
-      invoiceId: invoice.invoiceId,
-      customerName: invoice.customerName,
-      amount: invoice.amount,
+      invoiceId: invoice.invoiceNumber,
+      customerName: invoice.customer.name,
+      amount: invoice.total,
       status: invoice.status,
-      createdAt: invoice.createdAt.toISOString(),
-      customer: invoice.customer ? {
+      createdAt: invoice.issueDate,
+      customer: {
         name: invoice.customer.name,
         email: invoice.customer.email,
         company: invoice.customer.company || undefined,
         address: invoice.customer.address || undefined,
         phone: invoice.customer.phone || undefined,
-      } : undefined,
-      lineItems: mockLineItems,
-      issueDate: invoice.createdAt.toISOString(),
-      description: invoice.description || undefined,
-      subtotal: invoice.amount,
+      },
+      lineItems: lineItems,
+      issueDate: invoice.issueDate,
+      description: invoice.notes || undefined,
+      subtotal: invoice.subtotal,
       taxAmount: 0,
       discountAmount: 0,
       tax: 0,
@@ -92,17 +71,17 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="invoice-${invoice.invoiceId}.pdf"`,
+        'Content-Disposition': `attachment; filename="invoice-${invoice.invoiceNumber}.pdf"`,
         'Content-Length': pdfBuffer.length.toString(),
       },
     });
 
   } catch (error) {
     console.error('PDF generation error:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json({ 
-      error: 'Failed to generate PDF' 
+      error: 'Failed to generate PDF',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 } 

@@ -4,14 +4,17 @@ import { mockInvoices } from '@/lib/mock-data';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentication is optional for development with mock data
     // In production, implement proper authentication here
 
+    // Await params in Next.js 15
+    const { id } = await params;
+
     // Get invoice from mock data
-    const invoice = mockInvoices.find(inv => inv.id === params.id);
+    const invoice = mockInvoices.find(inv => inv.id === id);
 
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });

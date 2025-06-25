@@ -1,15 +1,9 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Font } from '@react-pdf/renderer';
-
-// Register fonts for better typography
-Font.register({
-  family: 'Inter',
-  src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2',
-});
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   page: {
-    fontFamily: 'Inter',
+    fontFamily: 'Helvetica',
     fontSize: 11,
     paddingTop: 50,
     paddingLeft: 50,
@@ -418,7 +412,7 @@ export const PDFDownloadButton: React.FC<PDFDownloadButtonProps> = ({
       document={<InvoicePDF invoice={invoice} companyInfo={companyInfo} />}
       fileName={fileName || defaultFileName}
     >
-      {({ url, loading }) => (
+      {({ loading }) => (
         <div>
           {loading ? 'Generating PDF...' : children}
         </div>

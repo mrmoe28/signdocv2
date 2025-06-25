@@ -119,9 +119,7 @@ export function TaxRates() {
       return;
     }
     
-    if (confirm('Are you sure you want to delete this tax rate?')) {
-      setTaxRates(prev => prev.filter(t => t.id !== taxRateId));
-    }
+    setTaxRates(prev => prev.filter(t => t.id !== taxRateId));
   };
 
   const handleSetDefault = (taxRateId: string) => {
