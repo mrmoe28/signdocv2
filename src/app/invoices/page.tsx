@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, FileText, DollarSign, Calendar, Eye, Edit, Trash2, Download, Mail } from 'lucide-react';
+import { BackButton } from '@/components/ui/back-button';
 
 interface Invoice {
   id: string;
@@ -152,6 +153,11 @@ export default function InvoicesPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Back Button */}
+      <div className="mb-6">
+        <BackButton />
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
