@@ -133,18 +133,18 @@ export default function InvoicesPage() {
   };
 
   const filteredInvoices = invoices.filter(invoice =>
-    invoice.invoiceId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (invoice.customer?.company && invoice.customer.company.toLowerCase().includes(searchTerm.toLowerCase()))
+    (invoice.invoiceId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (invoice.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (invoice.customer?.company || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Calculate summary stats
   const totalInvoices = invoices.length;
-  const totalAmount = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
+  const totalAmount = invoices.reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
   const paidInvoices = invoices.filter(inv => inv.status === 'Paid').length;
   const pendingAmount = invoices
     .filter(inv => inv.status !== 'Paid')
-    .reduce((sum, invoice) => sum + invoice.amount, 0);
+    .reduce((sum, invoice) => sum + (invoice.amount || 0), 0);
 
   if (isLoading) {
     return (
@@ -285,19 +285,19 @@ export default function InvoicesPage() {
                   {filteredInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">
-                        {invoice.invoiceId}
+                        {invoice.invoiceId || 'N/A'}
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{invoice.customerName}</div>
+                          <div className="font-medium">{invoice.customerName || 'Unknown Customer'}</div>
                           {invoice.customer?.company && (
                             <div className="text-sm text-gray-600">{invoice.customer.company}</div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{formatCurrency(invoice.amount)}</TableCell>
-                      <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                      <TableCell>{formatDate(invoice.createdAt)}</TableCell>
+                      <TableCell>{formatCurrency(invoice.amount || 0)}</TableCell>
+                      <TableCell>{getStatusBadge(invoice.status || 'Draft')}</TableCell>
+                      <TableCell>{invoice.createdAt ? formatDate(invoice.createdAt) : 'N/A'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button 
