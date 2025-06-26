@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -173,6 +173,69 @@ export function DashboardContent() {
   const [layouts, setLayouts] = useState(defaultLayouts);
   const [isDraggable, setIsDraggable] = useState(false);
   const [minimizedCards, setMinimizedCards] = useState<Set<string>>(new Set());
+  
+  // Real data states
+  const [dashboardData, setDashboardData] = useState<{
+    customers: any[];
+    invoices: any[];
+    payments: any[];
+    leads: any[];
+    appointments: any[];
+    loading: boolean;
+    error: string | null;
+  }>({
+    customers: [],
+    invoices: [],
+    payments: [],
+    leads: [],
+    appointments: [],
+    loading: true,
+    error: null
+  });
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setDashboardData(prev => ({ ...prev, loading: true, error: null }));
+        
+        const [customersRes, invoicesRes, paymentsRes, leadsRes, appointmentsRes] = await Promise.all([
+          fetch('/api/customers'),
+          fetch('/api/invoices'),
+          fetch('/api/payments'),
+          fetch('/api/leads'),
+          fetch('/api/appointments')
+        ]);
+
+        const [customers, invoicesData, payments, leads, appointments] = await Promise.all([
+          customersRes.json(),
+          invoicesRes.json(),
+          paymentsRes.json(),
+          leadsRes.json(),
+          appointmentsRes.json()
+        ]);
+
+        setDashboardData({
+          customers: customers.customers || customers || [],
+          invoices: invoicesData.invoices || invoicesData || [],
+          payments: payments.payments || payments || [],
+          leads: leads.leads || leads || [],
+          appointments: appointments.appointments || appointments || [],
+          loading: false,
+          error: null
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setDashboardData(prev => ({
+          ...prev,
+          loading: false,
+          error: 'Failed to load dashboard data'
+        }));
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const handleCustomizeClick = () => {
     const newCustomizeMode = !isCustomizeMode;
@@ -211,6 +274,179 @@ export function DashboardContent() {
     setMinimizedCards(new Set());
   };
 
+  // Generate recent activity from real data
+  const recentActivity = useMemo(() => {
+    if (dashboardData.loading) return [];
+
+    const { customers, invoices, payments, leads, appointments } = dashboardData;
+    const activities: Array<{
+      id: string;
+      type: 'invoice' | 'customer' | 'payment' | 'lead' | 'appointment';
+      title: string;
+      description: string;
+      time: string;
+      color: string;
+      icon: string;
+    }> = [];
+
+    // Add recent invoices
+    invoices.slice(0, 2).forEach((invoice: any) => {
+      activities.push({
+        id: `invoice-${invoice.id}`,
+        type: 'invoice',
+        title: 'Invoice Created',
+        description: `${invoice.invoiceNumber} for $${invoice.total?.toFixed(2) || '0.00'}`,
+        time: new Date(invoice.createdAt).toLocaleDateString(),
+        color: 'bg-green-50',
+        icon: 'green'
+      });
+    });
+
+    // Add recent customers
+    customers.slice(0, 1).forEach((customer: any) => {
+      activities.push({
+        id: `customer-${customer.id}`,
+        type: 'customer',
+        title: 'New Customer Added',
+        description: customer.name,
+        time: new Date(customer.createdAt).toLocaleDateString(),
+        color: 'bg-blue-50',
+        icon: 'blue'
+      });
+    });
+
+    // Add recent payments
+    payments.slice(0, 1).forEach((payment: any) => {
+      activities.push({
+        id: `payment-${payment.id}`,
+        type: 'payment',
+        title: 'Payment Received',
+        description: `$${payment.amount?.toFixed(2) || '0.00'} from ${payment.customerName}`,
+        time: new Date(payment.createdAt).toLocaleDateString(),
+        color: 'bg-purple-50',
+        icon: 'purple'
+      });
+    });
+
+    // Add recent appointments
+    appointments.slice(0, 1).forEach((appointment: any) => {
+      activities.push({
+        id: `appointment-${appointment.id}`,
+        type: 'appointment',
+        title: 'Appointment Scheduled',
+        description: appointment.description || 'Site inspection',
+        time: new Date(appointment.createdAt).toLocaleDateString(),
+        color: 'bg-orange-50',
+        icon: 'orange'
+      });
+    });
+
+    // Sort by creation date and limit to 4 most recent
+    return activities.slice(0, 4);
+  }, [dashboardData]);
+
+  // Calculate metrics from real data
+  const metrics = useMemo(() => {
+    if (dashboardData.loading) {
+      return {
+        monthlyRevenue: '$0.00',
+        jobsCompleted: '0/0',
+        outstandingInvoices: '$0.00',
+        outstandingCount: 0,
+        pipelineValue: '$0.00',
+        pipelineCount: 0,
+        totalRevenue: '$0.00',
+        totalExpenses: '$0.00',
+        netProfit: '$0.00',
+        profitMargin: '0%',
+        todaysJobs: '$0.00',
+        todaysJobsCount: 0,
+        revenueEarned: '$0.00',
+        tomorrowsJobs: '$0.00',
+        tomorrowsJobsCount: 0,
+        newLeads: 0,
+        estimatesCreated: '$0.00',
+        estimatesCount: 0,
+        activeCustomers: 0,
+        totalInvoices: 0
+      };
+    }
+
+    const { customers, invoices, payments, leads, appointments } = dashboardData;
+    
+    // Calculate monthly revenue from payments
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const monthlyPayments = payments.filter((payment: any) => {
+      const paymentDate = new Date(payment.paymentDate || payment.createdAt);
+      return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
+    });
+    const monthlyRevenue = monthlyPayments.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0);
+
+    // Calculate outstanding invoices
+    const outstandingInvoices = invoices.filter((invoice: any) => 
+      invoice.status === 'Draft' || invoice.status === 'Sent' || invoice.status === 'Overdue'
+    );
+    const outstandingAmount = outstandingInvoices.reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
+
+    // Calculate pipeline value from leads
+    const pipelineValue = leads.reduce((sum: number, lead: any) => sum + (lead.estimatedValue || 0), 0);
+
+    // Calculate total revenue from all invoices
+    const totalRevenue = invoices.reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
+    
+    // Mock expenses for now (could be calculated from a separate expenses API)
+    const totalExpenses = 900;
+    const netProfit = totalRevenue - totalExpenses;
+    const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0';
+
+    // Today's appointments
+    const today = new Date().toDateString();
+    const todaysAppointments = appointments.filter((apt: any) => 
+      new Date(apt.scheduledDate).toDateString() === today
+    );
+
+    // Tomorrow's appointments
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowsAppointments = appointments.filter((apt: any) => 
+      new Date(apt.scheduledDate).toDateString() === tomorrow.toDateString()
+    );
+
+    // New leads this month
+    const newLeadsThisMonth = leads.filter((lead: any) => {
+      const leadDate = new Date(lead.createdAt);
+      return leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
+    }).length;
+
+    // Draft invoices (estimates)
+    const estimates = invoices.filter((invoice: any) => invoice.status === 'Draft');
+    const estimatesValue = estimates.reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
+
+    return {
+      monthlyRevenue: `$${monthlyRevenue.toFixed(2)}`,
+      jobsCompleted: `${todaysAppointments.length}/${appointments.length}`,
+      outstandingInvoices: `$${outstandingAmount.toFixed(2)}`,
+      outstandingCount: outstandingInvoices.length,
+      pipelineValue: `$${pipelineValue.toFixed(2)}`,
+      pipelineCount: leads.length,
+      totalRevenue: `$${totalRevenue.toFixed(2)}`,
+      totalExpenses: `$${totalExpenses.toFixed(2)}`,
+      netProfit: `$${netProfit.toFixed(2)}`,
+      profitMargin: `${profitMargin}%`,
+      todaysJobs: `$${todaysAppointments.reduce((sum: number, apt: any) => sum + (apt.estimatedValue || 0), 0).toFixed(2)}`,
+      todaysJobsCount: todaysAppointments.length,
+      revenueEarned: `$${monthlyRevenue.toFixed(2)}`,
+      tomorrowsJobs: `$${tomorrowsAppointments.reduce((sum: number, apt: any) => sum + (apt.estimatedValue || 0), 0).toFixed(2)}`,
+      tomorrowsJobsCount: tomorrowsAppointments.length,
+      newLeads: newLeadsThisMonth,
+      estimatesCreated: `$${estimatesValue.toFixed(2)}`,
+      estimatesCount: estimates.length,
+      activeCustomers: customers.length,
+      totalInvoices: invoices.length
+    };
+  }, [dashboardData]);
+
   // Memoize the grid layout to avoid re-renders
   const gridContent = useMemo(() => (
     <GridLayout
@@ -236,7 +472,7 @@ export function DashboardContent() {
         >
           <KPICard
             title="Monthly Revenue"
-            value="$650.00"
+            value={metrics.monthlyRevenue}
             color="green"
             icon={<DollarSign className="h-8 w-8" />}
             trend={{ value: "+12.5%", direction: "up" }}
@@ -253,7 +489,7 @@ export function DashboardContent() {
         >
           <KPICard
             title="Jobs Completed"
-            value="0/0"
+            value={metrics.jobsCompleted}
             subtitle="This Month"
             color="blue"
             icon={<CheckCircle className="h-8 w-8" />}
@@ -271,8 +507,8 @@ export function DashboardContent() {
         >
           <KPICard
             title="Outstanding Invoices"
-            value="$0.00"
-            subtitle="0 invoices"
+            value={metrics.outstandingInvoices}
+            subtitle={`${metrics.outstandingCount} invoices`}
             color="red"
             icon={<AlertTriangle className="h-8 w-8" />}
           />
@@ -288,8 +524,8 @@ export function DashboardContent() {
         >
           <KPICard
             title="Pipeline Value"
-            value="$11,021.00"
-            subtitle="3 estimates"
+            value={metrics.pipelineValue}
+            subtitle={`${metrics.pipelineCount} estimates`}
             color="purple"
             icon={<Target className="h-8 w-8" />}
             trend={{ value: "+8.3%", direction: "up" }}
@@ -315,32 +551,32 @@ export function DashboardContent() {
             <CardContent className="space-y-4 overflow-y-auto">
               <ReportCard 
                 title="Today's Jobs" 
-                value="$0.00" 
-                count="0" 
+                value={metrics.todaysJobs} 
+                count={metrics.todaysJobsCount.toString()} 
                 icon={<Calendar className="h-4 w-4" />}
                 trend={{ value: "0%", direction: "up" }}
               />
               <ReportCard 
                 title="Revenue Earned" 
-                value="$650.00" 
+                value={metrics.revenueEarned} 
                 icon={<DollarSign className="h-4 w-4" />}
                 trend={{ value: "+15%", direction: "up" }}
               />
               <ReportCard 
                 title="Tomorrow's Schedule" 
-                value="$0.00" 
-                count="0 jobs" 
+                value={metrics.tomorrowsJobs} 
+                count={`${metrics.tomorrowsJobsCount} jobs`} 
                 icon={<Calendar className="h-4 w-4" />}
               />
               <ReportCard 
                 title="New Leads" 
-                value="0" 
+                value={metrics.newLeads.toString()} 
                 icon={<Users className="h-4 w-4" />}
               />
               <ReportCard 
                 title="Estimates Created" 
-                value="$0.00" 
-                count="0" 
+                value={metrics.estimatesCreated} 
+                count={metrics.estimatesCount.toString()} 
                 icon={<FileText className="h-4 w-4" />}
               />
             </CardContent>
@@ -366,20 +602,20 @@ export function DashboardContent() {
               <div className="space-y-4 text-base mb-6">
                 <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                   <span className="font-medium">Total Revenue:</span>
-                  <span className="font-bold text-green-600 text-lg">$13,355.63</span>
+                  <span className="font-bold text-green-600 text-lg">{metrics.totalRevenue}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
                   <span className="font-medium">Total Expenses:</span>
-                  <span className="font-bold text-red-600 text-lg">$900.00</span>
+                  <span className="font-bold text-red-600 text-lg">{metrics.totalExpenses}</span>
                 </div>
                 <div className="flex justify-between items-center p-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg">
                   <span className="font-bold text-lg">Net Profit:</span>
-                  <span className="font-bold text-2xl">$12,753.63</span>
+                  <span className="font-bold text-2xl">{metrics.netProfit}</span>
                 </div>
               </div>
               <div className="flex-1 min-h-[120px] bg-gradient-to-br from-green-400 via-green-500 to-teal-500 rounded-lg flex items-center justify-center shadow-inner">
                 <div className="text-center text-white">
-                  <div className="text-3xl font-bold mb-2">95.2%</div>
+                  <div className="text-3xl font-bold mb-2">{metrics.profitMargin}</div>
                   <div className="text-sm opacity-90">Profit Margin</div>
                 </div>
               </div>
@@ -406,11 +642,11 @@ export function DashboardContent() {
             <CardContent className="flex flex-col h-full">
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-600">0</div>
+                  <div className="text-2xl font-bold text-gray-600">{dashboardData.appointments.length}</div>
                   <div className="text-sm text-gray-500">Scheduled Jobs</div>
                 </div>
                 <div className="text-center p-4 bg-teal-50 rounded-lg">
-                  <div className="text-2xl font-bold text-teal-600">3</div>
+                  <div className="text-2xl font-bold text-teal-600">{metrics.estimatesCount}</div>
                   <div className="text-sm text-gray-500">Pending Estimates</div>
                 </div>
               </div>
@@ -455,11 +691,11 @@ export function DashboardContent() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">1</div>
+                  <div className="text-2xl font-bold text-blue-600">{metrics.activeCustomers}</div>
                   <div className="text-sm text-gray-600">Active Customers</div>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">1</div>
+                  <div className="text-2xl font-bold text-green-600">{metrics.totalInvoices}</div>
                   <div className="text-sm text-gray-600">Total Invoices</div>
                 </div>
               </div>
@@ -511,46 +747,27 @@ export function DashboardContent() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 overflow-y-auto">
-              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                  <CheckCircle className="h-4 w-4 text-white" />
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity) => (
+                  <div key={activity.id} className={`flex items-center gap-3 p-3 ${activity.color} rounded-lg`}>
+                    <div className={`w-8 h-8 bg-${activity.icon}-500 rounded-full flex items-center justify-center`}>
+                      {activity.type === 'invoice' && <CheckCircle className="h-4 w-4 text-white" />}
+                      {activity.type === 'customer' && <Users className="h-4 w-4 text-white" />}
+                      {activity.type === 'payment' && <DollarSign className="h-4 w-4 text-white" />}
+                      {activity.type === 'appointment' && <Calendar className="h-4 w-4 text-white" />}
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">{activity.title}</div>
+                      <div className="text-xs text-gray-600">{activity.description}</div>
+                    </div>
+                    <div className="text-xs text-gray-500">{activity.time}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <div className="text-sm">No recent activity</div>
                 </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">Invoice Created</div>
-                  <div className="text-xs text-gray-600">INV-842129 for $450.00</div>
-                </div>
-                <div className="text-xs text-gray-500">2h ago</div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <Users className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">New Customer Added</div>
-                  <div className="text-xs text-gray-600">Norma Cook</div>
-                </div>
-                <div className="text-xs text-gray-500">3h ago</div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
-                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">Estimate Sent</div>
-                  <div className="text-xs text-gray-600">Solar installation quote</div>
-                </div>
-                <div className="text-xs text-gray-500">1d ago</div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
-                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                  <Calendar className="h-4 w-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">Appointment Scheduled</div>
-                  <div className="text-xs text-gray-600">Site inspection next week</div>
-                </div>
-                <div className="text-xs text-gray-500">2d ago</div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </DashboardWidget>
@@ -575,7 +792,7 @@ export function DashboardContent() {
                 <div className="bg-purple-500 h-12 w-12 rounded"></div>
               </div>
               <div className="text-center mt-4">
-                <div className="text-2xl font-bold text-gray-900">$13,355.63</div>
+                <div className="text-2xl font-bold text-gray-900">{metrics.totalRevenue}</div>
                 <div className="text-sm text-gray-600">Total Revenue</div>
               </div>
             </CardContent>
@@ -649,18 +866,48 @@ export function DashboardContent() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>16+ Days</span>
-                  <span className="font-medium">$11,021.00</span>
+                  <span className="font-medium">{metrics.pipelineValue}</span>
                 </div>
               </div>
               <div className="mt-4 h-32 bg-gradient-to-t from-teal-500 to-teal-400 rounded-lg flex items-end justify-center pb-4">
-                <span className="text-white font-semibold">$11,021.00</span>
+                <span className="text-white font-semibold">{metrics.pipelineValue}</span>
               </div>
             </CardContent>
           </Card>
         </DashboardWidget>
       </div>
     </GridLayout>
-  ), [layouts, isDraggable, isCustomizeMode, minimizedCards]);
+  ), [layouts, isDraggable, isCustomizeMode, minimizedCards, metrics]);
+
+  if (dashboardData.loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (dashboardData.error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 mb-4">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-2" />
+          </div>
+          <p className="text-gray-600">{dashboardData.error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
