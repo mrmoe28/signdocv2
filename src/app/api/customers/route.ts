@@ -4,33 +4,46 @@ import { verifyToken } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
+// Helper function to get authenticated user or default admin
+async function getAuthenticatedUser(req: NextRequest) {
+  const token = req.cookies.get('auth-token')?.value;
+  
+  let userId = null;
+  
+  // Try to get user from token first
+  if (token) {
+    const decoded = verifyToken(token);
+    if (decoded) {
+      // Verify the user actually exists
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId }
+      });
+      if (user) {
+        userId = user.id;
+      }
+    }
+  }
+  
+  // If no valid token/user, use the default admin user
+  if (!userId) {
+    const defaultUser = await prisma.user.findFirst({
+      where: { email: 'admin@ekosolar.com' }
+    });
+    
+    if (!defaultUser) {
+      throw new Error('No default admin user found. Please set up the admin user first.');
+    }
+    
+    userId = defaultUser.id;
+  }
+  
+  return userId;
+}
+
 // GET /api/customers - Get all customers
 export async function GET(req: NextRequest) {
   try {
-    // Get auth token from cookies
-    const token = req.cookies.get('auth-token')?.value;
-    
-    let userId;
-    
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        userId = decoded.userId;
-      }
-    }
-    
-    // If no valid token, use the default admin user
-    if (!userId) {
-      const defaultUser = await prisma.user.findFirst({
-        where: { email: 'admin@ekosolar.com' }
-      });
-      
-      if (!defaultUser) {
-        return NextResponse.json({ error: 'No user found' }, { status: 401 });
-      }
-      
-      userId = defaultUser.id;
-    }
+    const userId = await getAuthenticatedUser(req);
 
     // Get customers for the authenticated user
     const customers = await prisma.customer.findMany({
@@ -46,7 +59,9 @@ export async function GET(req: NextRequest) {
 
   } catch (error) {
     console.error('Get customers error:', error);
-    return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Failed to fetch customers' 
+    }, { status: 500 });
   } finally {
     await prisma.$disconnect();
   }
@@ -55,30 +70,7 @@ export async function GET(req: NextRequest) {
 // POST /api/customers - Create a new customer
 export async function POST(req: NextRequest) {
   try {
-    // Get auth token from cookies
-    const token = req.cookies.get('auth-token')?.value;
-    
-    let userId;
-    
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        userId = decoded.userId;
-      }
-    }
-    
-    // If no valid token, use the default admin user
-    if (!userId) {
-      const defaultUser = await prisma.user.findFirst({
-        where: { email: 'admin@ekosolar.com' }
-      });
-      
-      if (!defaultUser) {
-        return NextResponse.json({ error: 'No user found' }, { status: 401 });
-      }
-      
-      userId = defaultUser.id;
-    }
+    const userId = await getAuthenticatedUser(req);
 
     const {
       name,
@@ -99,6 +91,14 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ 
+        error: 'Please provide a valid email address' 
+      }, { status: 400 });
+    }
+
     // Check if customer with this email already exists for this user
     const existingCustomer = await prisma.customer.findFirst({
       where: {
@@ -113,20 +113,23 @@ export async function POST(req: NextRequest) {
       }, { status: 409 });
     }
 
+    // Prepare customer data with proper defaults
+    const customerData = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      phone: phone ? phone.trim() : null,
+      company: company ? company.trim() : null,
+      address: address ? address.trim() : null,
+      contactPerson: contactPerson ? contactPerson.trim() : null,
+      customerType: customerType || 'residential',
+      notifyByEmail: notifyByEmail !== false, // default to true
+      notifyBySmsText: notifyBySmsText !== false, // default to true
+      userId: userId
+    };
+
     // Create the customer
     const customer = await prisma.customer.create({
-      data: {
-        name,
-        email: email.toLowerCase(),
-        phone: phone || null,
-        company: company || null,
-        address: address || null,
-        contactPerson: contactPerson || null,
-        customerType: customerType || 'residential',
-        notifyByEmail: notifyByEmail !== false, // default to true
-        notifyBySmsText: notifyBySmsText !== false, // default to true
-        userId: userId
-      }
+      data: customerData
     });
 
     return NextResponse.json({ 
@@ -137,6 +140,21 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Create customer error:', error);
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('foreign key constraint')) {
+        return NextResponse.json({ 
+          error: 'Database error: User authentication failed. Please try again.' 
+        }, { status: 500 });
+      }
+      if (error.message.includes('Unique constraint')) {
+        return NextResponse.json({ 
+          error: 'A customer with this email already exists.' 
+        }, { status: 409 });
+      }
+    }
+    
     return NextResponse.json({ 
       error: 'Failed to create customer. Please try again.' 
     }, { status: 500 });
