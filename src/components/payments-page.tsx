@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useToast } from '@/components/ui/toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -87,6 +88,7 @@ function PaymentStatusBadge({ status }: { status: Payment['status'] }) {
 }
 
 export function PaymentsPage() {
+  const { addToast } = useToast();
   const [payments, setPayments] = useState<Payment[]>(mockPayments);
   const [loading, setLoading] = useState(false);
 
@@ -126,6 +128,11 @@ export function PaymentsPage() {
   const handleDeletePayment = (paymentId: string) => {
     if (confirm('Are you sure you want to delete this payment entry? This action cannot be undone.')) {
       setPayments(payments.filter(payment => payment.id !== paymentId));
+      addToast({
+        type: 'success',
+        title: 'Payment Deleted',
+        description: 'The payment entry has been successfully removed.'
+      });
     }
   };
 

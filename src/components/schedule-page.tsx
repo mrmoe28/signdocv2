@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/components/ui/toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { FileUpload } from '@/components/ui/file-upload';
 import { 
   Calendar,
   Clock,
@@ -36,6 +38,7 @@ interface ScheduleEvent {
   priority: 'High' | 'Medium' | 'Low';
   notes?: string;
   estimatedValue?: number;
+  photoUrl?: string;
 }
 
 
@@ -61,6 +64,7 @@ const typeColors = {
 };
 
 export function SchedulePage() {
+  const { addToast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [showNewEventForm, setShowNewEventForm] = useState(false);
@@ -70,6 +74,7 @@ export function SchedulePage() {
   const [appointments, setAppointments] = useState<ScheduleEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -81,7 +86,8 @@ export function SchedulePage() {
     location: '',
     priority: 'Medium' as ScheduleEvent['priority'],
     notes: '',
-    estimatedValue: ''
+    estimatedValue: '',
+    photo: null as File | null
   });
 
   // Load appointments on component mount
@@ -109,6 +115,7 @@ export function SchedulePage() {
           priority: string;
           notes?: string;
           estimatedValue?: number;
+          photoUrl?: string;
         }) => ({
           id: apt.id,
           title: apt.title,
@@ -121,7 +128,8 @@ export function SchedulePage() {
           status: apt.status,
           priority: apt.priority,
           notes: apt.notes || '',
-          estimatedValue: apt.estimatedValue || 0
+          estimatedValue: apt.estimatedValue || 0,
+          photoUrl: apt.photoUrl
         }));
         setAppointments(formattedAppointments);
       } else {
@@ -181,12 +189,26 @@ export function SchedulePage() {
   const handleCreateEvent = async () => {
     // Add validation
     if (!newEvent.title || !newEvent.customer || !newEvent.date || !newEvent.time) {
-      alert('Please fill in all required fields');
+      addToast({
+        type: 'warning',
+        title: 'Validation Error',
+        description: 'Please fill in all required fields (title, customer, date, and time)'
+      });
       return;
     }
     
     setSaving(true);
     try {
+      // Handle photo upload by converting to base64 (in production, upload to cloud storage)
+      let photoUrl = null;
+      if (newEvent.photo) {
+        const reader = new FileReader();
+        photoUrl = await new Promise<string>((resolve) => {
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsDataURL(newEvent.photo!);
+        });
+      }
+
       const response = await fetch('/api/appointments', {
         method: 'POST',
         headers: {
@@ -202,14 +224,19 @@ export function SchedulePage() {
           location: newEvent.location,
           priority: newEvent.priority,
           notes: newEvent.notes,
-          estimatedValue: newEvent.estimatedValue ? parseFloat(newEvent.estimatedValue) : null
+          estimatedValue: newEvent.estimatedValue ? parseFloat(newEvent.estimatedValue) : null,
+          photoUrl: photoUrl
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          alert('Appointment created successfully!');
+          addToast({
+            type: 'success',
+            title: 'Appointment Created',
+            description: 'Your appointment has been scheduled successfully!'
+          });
           setShowNewEventForm(false);
           setNewEvent({
             title: '',
@@ -221,22 +248,84 @@ export function SchedulePage() {
             location: '',
             priority: 'Medium',
             notes: '',
-            estimatedValue: ''
+            estimatedValue: '',
+            photo: null
           });
           // Reload appointments to show the new one
           loadAppointments();
         } else {
-          alert('Failed to create appointment: ' + data.error);
+          addToast({
+            type: 'error',
+            title: 'Failed to Create Appointment',
+            description: data.error
+          });
         }
       } else {
         const error = await response.json();
-        alert('Failed to create appointment: ' + error.error);
+        addToast({
+          type: 'error',
+          title: 'Failed to Create Appointment',
+          description: error.error
+        });
       }
     } catch (error) {
       console.error('Error creating appointment:', error);
-      alert('Failed to create appointment. Please try again.');
+      addToast({
+        type: 'error',
+        title: 'Network Error',
+        description: 'Failed to create appointment. Please check your connection and try again.'
+      });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm('Are you sure you want to delete this appointment? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeleting(eventId);
+    try {
+      const response = await fetch(`/api/appointments/${eventId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          addToast({
+            type: 'success',
+            title: 'Appointment Deleted',
+            description: 'The appointment has been successfully removed from your schedule.'
+          });
+          setSelectedEvent(null);
+          // Reload appointments to reflect the deletion
+          loadAppointments();
+        } else {
+          addToast({
+            type: 'error',
+            title: 'Failed to Delete Appointment',
+            description: data.error
+          });
+        }
+      } else {
+        const error = await response.json();
+        addToast({
+          type: 'error',
+          title: 'Failed to Delete Appointment',
+          description: error.error
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      addToast({
+        type: 'error',
+        title: 'Network Error',
+        description: 'Failed to delete appointment. Please check your connection and try again.'
+      });
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -613,6 +702,17 @@ export function SchedulePage() {
                 />
               </div>
 
+              <div>
+                <Label>Photo Upload</Label>
+                <p className="text-sm text-gray-600 mb-2">Upload a reference photo for this appointment (optional)</p>
+                <FileUpload
+                  onFileSelect={(file) => setNewEvent(prev => ({ ...prev, photo: file }))}
+                  accept="image/*"
+                  maxSize={5}
+                  disabled={saving}
+                />
+              </div>
+
               <div className="flex justify-end gap-3 pt-4">
                 <Button variant="outline" onClick={() => setShowNewEventForm(false)} disabled={saving}>
                   Cancel
@@ -685,11 +785,36 @@ export function SchedulePage() {
                   <p className="text-sm text-gray-600 mt-1">{selectedEvent.notes}</p>
                 </div>
               )}
+
+              {selectedEvent.photoUrl && (
+                <div>
+                  <Label>Photo</Label>
+                  <div className="mt-2">
+                    <img
+                      src={selectedEvent.photoUrl}
+                      alt="Appointment reference"
+                      className="max-w-full h-32 object-contain border rounded"
+                    />
+                  </div>
+                </div>
+              )}
               
               <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline">
+                <Button 
+                  variant="outline" 
+                  disabled={deleting === selectedEvent.id}
+                >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleDeleteEvent(selectedEvent.id)}
+                  disabled={deleting === selectedEvent.id}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleting === selectedEvent.id ? 'Deleting...' : 'Delete'}
                 </Button>
                 <Button>
                   <ExternalLink className="h-4 w-4 mr-2" />
