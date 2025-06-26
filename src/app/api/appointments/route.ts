@@ -1,41 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
 // GET /api/appointments - Get all appointments
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    // Get auth token from cookies
-    const token = req.cookies.get('auth-token')?.value;
-    
-    let userId;
-    
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        userId = decoded.userId;
-      }
-    }
-    
-    // If no valid token, use the default admin user
-    if (!userId) {
-      const defaultUser = await prisma.user.findFirst({
-        where: { email: 'admin@ekosolar.com' }
-      });
-      
-      if (!defaultUser) {
-        return NextResponse.json({ error: 'No user found' }, { status: 401 });
-      }
-      
-      userId = defaultUser.id;
-    }
+    const user = await getAuthenticatedUser();
 
     // Get appointments for the authenticated user
     const appointments = await prisma.appointment.findMany({
       where: {
-        userId: userId
+        userId: user.id
       },
       orderBy: {
         date: 'asc'
@@ -52,33 +28,30 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  try {
+    // For now, we'll use the admin user as fallback
+    // In a real app, you'd get this from the session/token
+    const adminUser = await prisma.user.findFirst({
+      where: { email: 'admin@ekosolar.com' }
+    });
+    
+    if (!adminUser) {
+      throw new Error('Admin user not found');
+    }
+    
+    return adminUser;
+  } catch (error) {
+    console.error('Error getting authenticated user:', error);
+    throw error;
+  }
+}
+
 // POST /api/appointments - Create a new appointment
 export async function POST(req: NextRequest) {
   try {
-    // Get auth token from cookies
-    const token = req.cookies.get('auth-token')?.value;
-    
-    let userId;
-    
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        userId = decoded.userId;
-      }
-    }
-    
-    // If no valid token, use the default admin user
-    if (!userId) {
-      const defaultUser = await prisma.user.findFirst({
-        where: { email: 'admin@ekosolar.com' }
-      });
-      
-      if (!defaultUser) {
-        return NextResponse.json({ error: 'No user found' }, { status: 401 });
-      }
-      
-      userId = defaultUser.id;
-    }
+    const user = await getAuthenticatedUser();
 
     const {
       title,
@@ -125,7 +98,7 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
         estimatedValue: estimatedValue ? parseFloat(estimatedValue) : null,
         photoUrl: photoUrl || null,
-        userId: userId
+        userId: user.id
       }
     });
 

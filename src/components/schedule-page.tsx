@@ -22,7 +22,8 @@ import {
   Search,
   Edit,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  ArrowLeft
 } from 'lucide-react';
 
 interface ScheduleEvent {
@@ -69,6 +70,7 @@ export function SchedulePage() {
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [showNewEventForm, setShowNewEventForm] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
+  const [selectedDayEvents, setSelectedDayEvents] = useState<{date: string, events: ScheduleEvent[]} | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [appointments, setAppointments] = useState<ScheduleEvent[]>([]);
@@ -184,6 +186,26 @@ export function SchedulePage() {
 
   const handleNextMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const handleDayClick = (day: number) => {
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const existingEvents = getEventsForDate(day);
+    
+    if (existingEvents.length > 0) {
+      // If there are existing events, show them in a list dialog
+      setSelectedDayEvents({
+        date: dateStr,
+        events: existingEvents
+      });
+    } else {
+      // If no events, create a new appointment for this date
+      setNewEvent(prev => ({
+        ...prev,
+        date: dateStr
+      }));
+      setShowNewEventForm(true);
+    }
   };
 
   const handleCreateEvent = async () => {
@@ -349,9 +371,20 @@ export function SchedulePage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Schedule</h1>
-          <p className="text-gray-600">Manage your work schedule and appointments</p>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => window.history.back()}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Schedule</h1>
+            <p className="text-gray-600">Manage your work schedule and appointments</p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -466,7 +499,7 @@ export function SchedulePage() {
               {/* Calendar days */}
               {getDaysInMonth(currentDate).map((day, index) => {
                 if (!day) {
-                  return <div key={index} className="p-2 h-24"></div>;
+                  return <div key={`empty-${index}`} className="p-2 h-24"></div>;
                 }
                 
                 const dayEvents = getEventsForDate(day);
@@ -476,8 +509,9 @@ export function SchedulePage() {
                 
                 return (
                   <div
-                    key={day}
-                    className={`p-2 h-24 border border-gray-200 ${isToday ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}
+                    key={`${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`}
+                    className={`p-2 h-24 border border-gray-200 cursor-pointer ${isToday ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleDayClick(day)}
                   >
                     <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
                       {day}
@@ -487,7 +521,10 @@ export function SchedulePage() {
                         <div
                           key={event.id}
                           className="text-xs p-1 rounded bg-blue-100 text-blue-800 truncate cursor-pointer hover:bg-blue-200"
-                          onClick={() => setSelectedEvent(event)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEvent(event);
+                          }}
                         >
                           {event.time} {event.title}
                         </div>
@@ -819,6 +856,101 @@ export function SchedulePage() {
                 <Button>
                   <ExternalLink className="h-4 w-4 mr-2" />
                   View Details
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Day Events Dialog */}
+      {selectedDayEvents && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>
+                  Appointments for {new Date(selectedDayEvents.date).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={() => setSelectedDayEvents(null)}>
+                  ×
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedDayEvents.events.map(event => (
+                <Card key={event.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => {
+                  setSelectedEvent(event);
+                  setSelectedDayEvents(null);
+                }}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-lg">{event.title}</h3>
+                          <Badge className={statusColors[event.status]}>
+                            {event.status}
+                          </Badge>
+                          <Badge className={typeColors[event.type]}>
+                            {event.type}
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            <span>{event.customer}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            <span>{event.time} ({event.duration})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            <span className="truncate">{event.location}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={priorityColors[event.priority]}>
+                              {event.priority}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        {event.estimatedValue && (
+                          <div className="mt-2 text-sm">
+                            <span className="text-gray-600">Estimated Value: </span>
+                            <span className="font-semibold text-green-600">
+                              {formatCurrency(event.estimatedValue)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              <div className="flex justify-between items-center pt-4 border-t">
+                <span className="text-sm text-gray-600">
+                  {selectedDayEvents.events.length} appointment{selectedDayEvents.events.length !== 1 ? 's' : ''}
+                </span>
+                <Button 
+                  onClick={() => {
+                    setNewEvent(prev => ({
+                      ...prev,
+                      date: selectedDayEvents.date
+                    }));
+                    setSelectedDayEvents(null);
+                    setShowNewEventForm(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New Appointment
                 </Button>
               </div>
             </CardContent>
