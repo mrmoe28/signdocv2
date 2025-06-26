@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Invoice, InvoiceFilters } from '@/lib/types';
 import { formatCurrency, formatDate, getStatusColor, createStripeCheckoutSession } from '@/lib/invoice-utils';
-import { Plus, Search, Eye, Edit, Trash2, CreditCard, Mail } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, CreditCard, Mail, Download, Send } from 'lucide-react';
 
 interface InvoiceListProps {
   onCreateNew: () => void;
@@ -117,6 +117,63 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
     } catch (error) {
       console.error('Error sending reminder:', error);
       alert('Failed to send reminder');
+    }
+  };
+
+  const handleEmailInvoice = async (invoice: Invoice) => {
+    if (invoice.status === 'Draft') {
+      alert('Cannot email draft invoices. Please finalize the invoice first.');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipientEmail: invoice.customer.email || `${invoice.customer.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+          subject: `Invoice ${invoice.invoiceNumber} from EKO SOLAR`,
+          message: `Dear ${invoice.customer.name},\n\nPlease find attached your invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.total)}.\n\nThank you for your business!\n\nBest regards,\nEKO SOLAR Team`
+        })
+      });
+
+      if (response.ok) {
+        alert(`Invoice ${invoice.invoiceNumber} has been emailed successfully!`);
+      } else {
+        const error = await response.json();
+        alert(`Failed to send email: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Failed to send email. Please try again.');
+    }
+  };
+
+  const handleDownloadInvoice = async (invoice: Invoice) => {
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/pdf`, {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoice-${invoice.invoiceNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const error = await response.json();
+        alert(`Failed to download invoice: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      alert('Failed to download invoice. Please try again.');
     }
   };
 
@@ -295,7 +352,47 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Primary Actions */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onViewInvoice(invoice)}
+                            title="View invoice"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEditInvoice(invoice)}
+                            title="Edit invoice"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          
+                          {/* Email & Download Actions */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEmailInvoice(invoice)}
+                            disabled={invoice.status === 'Draft'}
+                            title={invoice.status === 'Draft' ? 'Cannot email draft invoices' : 'Email invoice'}
+                            className="text-blue-600 hover:text-blue-700 disabled:text-gray-400"
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadInvoice(invoice)}
+                            title="Download PDF"
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          
+                          {/* Payment Actions */}
                           {invoice.status !== 'Paid' && invoice.status !== 'Draft' && (
                             <>
                               <Button
@@ -303,9 +400,10 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
                                 onClick={() => handlePayment(invoice)}
                                 disabled={paymentLoading === invoice.id}
                                 className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white"
+                                title="Pay now"
                               >
                                 <CreditCard className="h-3 w-3" />
-                                {paymentLoading === invoice.id ? 'Processing...' : 'Pay Now'}
+                                {paymentLoading === invoice.id ? 'Processing...' : 'Pay'}
                               </Button>
                               <Button
                                 variant="outline"
@@ -319,25 +417,14 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
                               </Button>
                             </>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onViewInvoice(invoice)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onEditInvoice(invoice)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          
+                          {/* Delete Action */}
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(invoice.id)}
                             className="text-red-600 hover:text-red-700"
+                            title="Delete invoice"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

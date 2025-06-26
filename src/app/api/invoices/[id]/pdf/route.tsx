@@ -1,52 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { InvoicePDF } from '@/lib/pdf-generator';
-import { mockInvoices } from '@/lib/mock-data';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  try {
+    // For now, we'll use the admin user as fallback
+    // In a real app, you'd get this from the session/token
+    const adminUser = await prisma.user.findFirst({
+      where: { email: 'admin@ekosolar.com' }
+    });
+    
+    if (!adminUser) {
+      throw new Error('Admin user not found');
+    }
+    
+    return adminUser;
+  } catch (error) {
+    console.error('Error getting authenticated user:', error);
+    throw error;
+  }
+}
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Authentication is optional for development with mock data
-    // In production, implement proper authentication here
-
-    // Await params in Next.js 15
+    const user = await getAuthenticatedUser();
     const { id } = await params;
 
-    // Get invoice from mock data
-    const invoice = mockInvoices.find(inv => inv.id === id);
+    // Get invoice from database
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id: id,
+        userId: user.id
+      },
+      include: {
+        customer: true
+      }
+    });
 
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
-    // Convert invoice items to line items for PDF
-    const lineItems = invoice.items.map(item => ({
-      description: item.description,
-      quantity: item.quantity,
-      rate: item.rate,
-      amount: item.quantity * item.rate
-    }));
+    // Create a simple line item from the invoice description
+    const lineItems = [{
+      description: invoice.description || 'Solar installation and services',
+      quantity: 1,
+      rate: invoice.amount,
+      amount: invoice.amount
+    }];
 
     // Prepare invoice data for PDF
     const invoiceData = {
-      invoiceId: invoice.invoiceNumber,
-      customerName: invoice.customer.name,
-      amount: invoice.total,
+      invoiceId: invoice.invoiceId,
+      customerName: invoice.customer?.name || invoice.customerName,
+      amount: invoice.amount,
       status: invoice.status,
-      createdAt: invoice.issueDate,
+      createdAt: invoice.createdAt.toISOString(),
       customer: {
-        name: invoice.customer.name,
-        email: invoice.customer.email,
-        company: invoice.customer.company || undefined,
-        address: invoice.customer.address || undefined,
-        phone: invoice.customer.phone || undefined,
+        name: invoice.customer?.name || invoice.customerName,
+        email: invoice.customer?.email || '',
+        company: invoice.customer?.company || undefined,
+        address: invoice.customer?.address || undefined,
+        phone: invoice.customer?.phone || undefined,
       },
       lineItems: lineItems,
-      issueDate: invoice.issueDate,
-      description: invoice.notes || undefined,
-      subtotal: invoice.subtotal,
+      issueDate: invoice.createdAt.toISOString(),
+      description: invoice.description || undefined,
+      subtotal: invoice.amount,
       taxAmount: 0,
       discountAmount: 0,
       tax: 0,
@@ -87,7 +114,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="invoice-${invoice.invoiceNumber}.pdf"`,
+        'Content-Disposition': `attachment; filename="invoice-${invoice.invoiceId}.pdf"`,
         'Content-Length': pdfBuffer.length.toString(),
       },
     });
@@ -99,5 +126,7 @@ export async function GET(
       error: 'Failed to generate PDF',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 } 
