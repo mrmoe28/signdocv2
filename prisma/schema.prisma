@@ -35,8 +35,10 @@ model User {
   zipCode     String?
   
   // Relationships
-  invoices    Invoice[]
-  customers   Customer[]
+  invoices     Invoice[]
+  customers    Customer[]
+  appointments Appointment[]
+  payments     Payment[]
 }
 
 model Customer {
@@ -57,6 +59,8 @@ model Customer {
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   invoices     Invoice[]
+  appointments Appointment[]
+  payments     Payment[]
 }
 
 model Invoice {
@@ -74,4 +78,50 @@ model Invoice {
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   customerId  String?
   customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  title           String
+  customer        String
+  customerEmail   String?
+  type            String   @default("Installation") // Installation, Consultation, Maintenance, Follow-up
+  date            DateTime
+  time            String
+  duration        String?
+  location        String?
+  status          String   @default("Scheduled") // Scheduled, In Progress, Completed, Cancelled
+  priority        String   @default("Medium") // High, Medium, Low
+  notes           String?
+  estimatedValue  Float?
+  photoUrl        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relationships
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId      String?
+  customerRecord  Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  invoiceId       String?
+  invoiceNumber   String?
+  customerName    String
+  amount          Float
+  status          String   @default("Pending") // Pending, Paid, Failed, Refunded
+  paymentDate     DateTime?
+  paymentMethod   String?
+  stripePaymentId String?
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relationships  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 } 

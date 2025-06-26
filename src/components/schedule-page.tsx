@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,60 +38,7 @@ interface ScheduleEvent {
   estimatedValue?: number;
 }
 
-const mockEvents: ScheduleEvent[] = [
-  {
-    id: '1',
-    title: 'Solar Panel Installation',
-    customer: 'John Smith',
-    type: 'Installation',
-    date: '2024-01-15',
-    time: '09:00',
-    duration: '4 hours',
-    location: '123 Main St, Atlanta, GA',
-    status: 'Scheduled',
-    priority: 'High',
-    estimatedValue: 15000,
-    notes: 'Residential rooftop installation - 20 panels'
-  },
-  {
-    id: '2',
-    title: 'Site Consultation',
-    customer: 'Sarah Johnson',
-    type: 'Consultation',
-    date: '2024-01-15',
-    time: '14:00',
-    duration: '1 hour',
-    location: '456 Oak Ave, Atlanta, GA',
-    status: 'Scheduled',
-    priority: 'Medium',
-    estimatedValue: 8500
-  },
-  {
-    id: '3',
-    title: 'System Maintenance',
-    customer: 'Mike Brown',
-    type: 'Maintenance',
-    date: '2024-01-16',
-    time: '10:00',
-    duration: '2 hours',
-    location: '789 Pine St, Atlanta, GA',
-    status: 'Completed',
-    priority: 'Low',
-    estimatedValue: 500
-  },
-  {
-    id: '4',
-    title: 'Follow-up Meeting',
-    customer: 'Lisa Davis',
-    type: 'Follow-up',
-    date: '2024-01-17',
-    time: '11:00',
-    duration: '30 minutes',
-    location: '321 Elm St, Atlanta, GA',
-    status: 'Scheduled',
-    priority: 'Medium'
-  }
-];
+
 
 const statusColors = {
   'Scheduled': 'bg-blue-100 text-blue-800',
@@ -120,6 +67,9 @@ export function SchedulePage() {
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [appointments, setAppointments] = useState<ScheduleEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -134,7 +84,57 @@ export function SchedulePage() {
     estimatedValue: ''
   });
 
-  const filteredEvents = mockEvents.filter(event => {
+  // Load appointments on component mount
+  useEffect(() => {
+    loadAppointments();
+  }, []);
+
+  const loadAppointments = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/appointments');
+      if (response.ok) {
+        const data = await response.json();
+        // Convert database format to component format
+        const formattedAppointments = data.appointments.map((apt: {
+          id: string;
+          title: string;
+          customer: string;
+          type: string;
+          date: string;
+          time: string;
+          duration?: string;
+          location?: string;
+          status: string;
+          priority: string;
+          notes?: string;
+          estimatedValue?: number;
+        }) => ({
+          id: apt.id,
+          title: apt.title,
+          customer: apt.customer,
+          type: apt.type,
+          date: apt.date.split('T')[0], // Convert DateTime to date string
+          time: apt.time,
+          duration: apt.duration || '',
+          location: apt.location || '',
+          status: apt.status,
+          priority: apt.priority,
+          notes: apt.notes || '',
+          estimatedValue: apt.estimatedValue || 0
+        }));
+        setAppointments(formattedAppointments);
+      } else {
+        console.error('Failed to load appointments');
+      }
+    } catch (error) {
+      console.error('Error loading appointments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredEvents = appointments.filter(event => {
     const matchesType = filterType === 'all' || event.type === filterType;
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          event.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,7 +167,7 @@ export function SchedulePage() {
 
   const getEventsForDate = (day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return mockEvents.filter(event => event.date === dateStr);
+    return appointments.filter(event => event.date === dateStr);
   };
 
   const handlePrevMonth = () => {
@@ -178,29 +178,66 @@ export function SchedulePage() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
-  const handleCreateEvent = () => {
-    // Here you would typically save to your backend
-    console.log('Creating new event:', newEvent);
-    
+  const handleCreateEvent = async () => {
     // Add validation
     if (!newEvent.title || !newEvent.customer || !newEvent.date || !newEvent.time) {
       alert('Please fill in all required fields');
       return;
     }
     
-    setShowNewEventForm(false);
-    setNewEvent({
-      title: '',
-      customer: '',
-      type: 'Installation',
-      date: '',
-      time: '',
-      duration: '',
-      location: '',
-      priority: 'Medium',
-      notes: '',
-      estimatedValue: ''
-    });
+    setSaving(true);
+    try {
+      const response = await fetch('/api/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: newEvent.title,
+          customer: newEvent.customer,
+          type: newEvent.type,
+          date: newEvent.date,
+          time: newEvent.time,
+          duration: newEvent.duration,
+          location: newEvent.location,
+          priority: newEvent.priority,
+          notes: newEvent.notes,
+          estimatedValue: newEvent.estimatedValue ? parseFloat(newEvent.estimatedValue) : null
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          alert('Appointment created successfully!');
+          setShowNewEventForm(false);
+          setNewEvent({
+            title: '',
+            customer: '',
+            type: 'Installation',
+            date: '',
+            time: '',
+            duration: '',
+            location: '',
+            priority: 'Medium',
+            notes: '',
+            estimatedValue: ''
+          });
+          // Reload appointments to show the new one
+          loadAppointments();
+        } else {
+          alert('Failed to create appointment: ' + data.error);
+        }
+      } else {
+        const error = await response.json();
+        alert('Failed to create appointment: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      alert('Failed to create appointment. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
 
@@ -264,19 +301,19 @@ export function SchedulePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
-                {mockEvents.filter(e => e.date === new Date().toISOString().split('T')[0]).length}
+                {loading ? '...' : appointments.filter(e => e.date === new Date().toISOString().split('T')[0]).length}
               </div>
               <div className="text-sm text-blue-600">Appointments Today</div>
             </div>
             <div className="text-center p-4 bg-yellow-50 rounded-lg">
               <div className="text-2xl font-bold text-yellow-600">
-                {mockEvents.filter(e => e.status === 'In Progress').length}
+                {loading ? '...' : appointments.filter(e => e.status === 'In Progress').length}
               </div>
               <div className="text-sm text-yellow-600">In Progress</div>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
-                ${mockEvents.filter(e => e.status === 'Completed' && e.estimatedValue).reduce((sum, e) => sum + (e.estimatedValue || 0), 0).toLocaleString()}
+                {loading ? '...' : `$${appointments.filter(e => e.status === 'Completed' && e.estimatedValue).reduce((sum, e) => sum + (e.estimatedValue || 0), 0).toLocaleString()}`}
               </div>
               <div className="text-sm text-green-600">Revenue This Week</div>
             </div>
@@ -577,11 +614,11 @@ export function SchedulePage() {
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowNewEventForm(false)}>
+                <Button variant="outline" onClick={() => setShowNewEventForm(false)} disabled={saving}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateEvent}>
-                  Schedule Appointment
+                <Button onClick={handleCreateEvent} disabled={saving}>
+                  {saving ? 'Scheduling...' : 'Schedule Appointment'}
                 </Button>
               </div>
             </CardContent>
