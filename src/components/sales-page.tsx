@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,162 +14,75 @@ import {
   DollarSign,
   Target,
   Users,
-  FileText,
   Plus,
-  Filter,
-  Search,
   Edit,
   Eye,
-  Send,
-  Download,
-  Calendar,
   Phone,
   Mail,
   MapPin,
-  Clock,
   CheckCircle,
-  XCircle,
-  AlertCircle,
-  BarChart3,
-  PieChart,
-  TrendingDown
+
 } from 'lucide-react';
 
-interface SalesLead {
+interface Lead {
   id: string;
   name: string;
-  company?: string;
   email: string;
   phone: string;
+  company?: string;
   location: string;
-  source: 'Website' | 'Referral' | 'Cold Call' | 'Social Media' | 'Advertisement';
-  status: 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Won' | 'Lost';
-  value: number;
+  source: 'Website' | 'Referral' | 'Cold Call' | 'Social Media' | 'Advertisement' | 'Trade Show' | 'Google Ads';
+  status: 'New' | 'Contacted' | 'Qualified' | 'Interested' | 'Not Interested' | 'Converted' | 'Lost';
+  score: number;
+  estimatedValue: number;
   probability: number;
+  assignedTo: string;
   createdDate: string;
-  lastContact: string;
+  lastContact?: string;
   nextFollowUp?: string;
   notes?: string;
-  assignedTo: string;
+  tags?: string[];
+  interests?: string[];
+  priority: 'High' | 'Medium' | 'Low';
 }
 
-interface Quote {
+interface Customer {
   id: string;
-  quoteNumber: string;
-  customer: string;
-  title: string;
-  value: number;
-  status: 'Draft' | 'Sent' | 'Viewed' | 'Accepted' | 'Rejected' | 'Expired';
-  createdDate: string;
-  validUntil: string;
-  items: Array<{
-    description: string;
-    quantity: number;
-    rate: number;
-    amount: number;
-  }>;
+  name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  address?: string;
+  contactPerson?: string;
+  customerType: string;
+  createdAt: string;
 }
 
-const mockLeads: SalesLead[] = [
-  {
-    id: '1',
-    name: 'John Smith',
-    company: 'Smith Residence',
-    email: 'john@email.com',
-    phone: '(555) 123-4567',
-    location: 'Atlanta, GA',
-    source: 'Website',
-    status: 'Qualified',
-    value: 25000,
-    probability: 75,
-    createdDate: '2024-01-10',
-    lastContact: '2024-01-14',
-    nextFollowUp: '2024-01-18',
-    notes: 'Interested in 30-panel residential installation',
-    assignedTo: 'Edward Harrison'
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    company: 'Johnson Corp',
-    email: 'sarah@johnsoncorp.com',
-    phone: '(555) 987-6543',
-    location: 'Marietta, GA',
-    source: 'Referral',
-    status: 'Proposal',
-    value: 45000,
-    probability: 60,
-    createdDate: '2024-01-08',
-    lastContact: '2024-01-15',
-    nextFollowUp: '2024-01-20',
-    notes: 'Commercial installation, needs detailed proposal',
-    assignedTo: 'Edward Harrison'
-  },
-  {
-    id: '3',
-    name: 'Mike Brown',
-    email: 'mike@email.com',
-    phone: '(555) 456-7890',
-    location: 'Decatur, GA',
-    source: 'Cold Call',
-    status: 'Contacted',
-    value: 18000,
-    probability: 30,
-    createdDate: '2024-01-12',
-    lastContact: '2024-01-13',
-    nextFollowUp: '2024-01-19',
-    assignedTo: 'Edward Harrison'
-  }
-];
-
-const mockQuotes: Quote[] = [
-  {
-    id: '1',
-    quoteNumber: 'QUO-2024-001',
-    customer: 'John Smith',
-    title: 'Residential Solar Installation - 30 Panels',
-    value: 25000,
-    status: 'Sent',
-    createdDate: '2024-01-15',
-    validUntil: '2024-02-15',
-    items: [
-      { description: 'Solar Panels (30x)', quantity: 30, rate: 400, amount: 12000 },
-      { description: 'Inverter System', quantity: 1, rate: 3000, amount: 3000 },
-      { description: 'Installation & Labor', quantity: 1, rate: 8000, amount: 8000 },
-      { description: 'Permits & Inspections', quantity: 1, rate: 2000, amount: 2000 }
-    ]
-  },
-  {
-    id: '2',
-    quoteNumber: 'QUO-2024-002',
-    customer: 'Sarah Johnson',
-    title: 'Commercial Solar Installation - 100 Panels',
-    value: 45000,
-    status: 'Draft',
-    createdDate: '2024-01-16',
-    validUntil: '2024-02-16',
-    items: [
-      { description: 'Commercial Solar Panels (100x)', quantity: 100, rate: 350, amount: 35000 },
-      { description: 'Commercial Inverter System', quantity: 2, rate: 3000, amount: 6000 },
-      { description: 'Installation & Labor', quantity: 1, rate: 4000, amount: 4000 }
-    ]
-  }
-];
+interface Invoice {
+  id: string;
+  invoiceId: string;
+  customerName: string;
+  amount: number;
+  description?: string;
+  status: string;
+  createdAt: string;
+}
 
 const statusColors = {
   'New': 'bg-blue-100 text-blue-800',
   'Contacted': 'bg-yellow-100 text-yellow-800',
   'Qualified': 'bg-green-100 text-green-800',
+  'Interested': 'bg-purple-100 text-purple-800',
+  'Not Interested': 'bg-red-100 text-red-800',
+  'Converted': 'bg-green-100 text-green-800',
+  'Lost': 'bg-gray-100 text-gray-800',
   'Proposal': 'bg-purple-100 text-purple-800',
   'Negotiation': 'bg-orange-100 text-orange-800',
   'Won': 'bg-green-100 text-green-800',
-  'Lost': 'bg-red-100 text-red-800',
   'Draft': 'bg-gray-100 text-gray-800',
   'Sent': 'bg-blue-100 text-blue-800',
-  'Viewed': 'bg-yellow-100 text-yellow-800',
-  'Accepted': 'bg-green-100 text-green-800',
-  'Rejected': 'bg-red-100 text-red-800',
-  'Expired': 'bg-red-100 text-red-800'
+  'Paid': 'bg-green-100 text-green-800',
+  'Pending': 'bg-yellow-100 text-yellow-800'
 };
 
 const sourceColors = {
@@ -177,7 +90,9 @@ const sourceColors = {
   'Referral': 'bg-green-100 text-green-800',
   'Cold Call': 'bg-orange-100 text-orange-800',
   'Social Media': 'bg-purple-100 text-purple-800',
-  'Advertisement': 'bg-pink-100 text-pink-800'
+  'Advertisement': 'bg-pink-100 text-pink-800',
+  'Trade Show': 'bg-teal-100 text-teal-800',
+  'Google Ads': 'bg-red-100 text-red-800'
 };
 
 export function SalesPage() {
@@ -185,8 +100,11 @@ export function SalesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showNewLeadForm, setShowNewLeadForm] = useState(false);
-  const [showNewQuoteForm, setShowNewQuoteForm] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<SalesLead | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [newLead, setNewLead] = useState({
     name: '',
@@ -194,33 +112,84 @@ export function SalesPage() {
     email: '',
     phone: '',
     location: '',
-    source: 'Website' as SalesLead['source'],
-    value: '',
+    source: 'Website' as Lead['source'],
+    estimatedValue: '',
     probability: '50',
     notes: ''
   });
 
-  // Calculate sales metrics
+  // Fetch all data from APIs
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch leads
+      const leadsResponse = await fetch('/api/leads');
+      if (leadsResponse.ok) {
+        const leadsData = await leadsResponse.json();
+        const leadsWithParsedFields = leadsData.map((lead: Lead & { tags: string; interests: string }) => ({
+          ...lead,
+          tags: typeof lead.tags === 'string' ? JSON.parse(lead.tags || '[]') : lead.tags || [],
+          interests: typeof lead.interests === 'string' ? JSON.parse(lead.interests || '[]') : lead.interests || []
+        }));
+        setLeads(leadsWithParsedFields);
+      }
+
+      // Fetch customers
+      const customersResponse = await fetch('/api/customers');
+      if (customersResponse.ok) {
+        const customersData = await customersResponse.json();
+        setCustomers(customersData);
+      }
+
+      // Fetch invoices
+      const invoicesResponse = await fetch('/api/invoices');
+      if (invoicesResponse.ok) {
+        const invoicesData = await invoicesResponse.json();
+        setInvoices(invoicesData);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Calculate sales metrics from real data
   const salesMetrics = useMemo(() => {
-    const totalPipelineValue = mockLeads.reduce((sum, lead) => sum + lead.value, 0);
-    const weightedPipelineValue = mockLeads.reduce((sum, lead) => sum + (lead.value * lead.probability / 100), 0);
-    const wonDeals = mockLeads.filter(lead => lead.status === 'Won');
-    const totalWonValue = wonDeals.reduce((sum, lead) => sum + lead.value, 0);
-    const conversionRate = mockLeads.length > 0 ? (wonDeals.length / mockLeads.length) * 100 : 0;
-    const avgDealSize = mockLeads.length > 0 ? totalPipelineValue / mockLeads.length : 0;
+    const totalPipelineValue = leads.reduce((sum, lead) => sum + lead.estimatedValue, 0);
+    const weightedPipelineValue = leads.reduce((sum, lead) => sum + (lead.estimatedValue * lead.probability / 100), 0);
+    const wonDeals = leads.filter(lead => lead.status === 'Converted');
+    const totalWonValue = wonDeals.reduce((sum, lead) => sum + lead.estimatedValue, 0);
+    const conversionRate = leads.length > 0 ? (wonDeals.length / leads.length) * 100 : 0;
+    const avgDealSize = leads.length > 0 ? totalPipelineValue / leads.length : 0;
+    
+    // Calculate revenue from invoices
+    const totalRevenue = invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
+    const paidInvoices = invoices.filter(invoice => invoice.status === 'Paid');
+    const totalPaidRevenue = paidInvoices.reduce((sum, invoice) => sum + invoice.amount, 0);
 
     return {
       totalPipelineValue,
       weightedPipelineValue,
       totalWonValue,
+      totalRevenue,
+      totalPaidRevenue,
       conversionRate,
       avgDealSize,
-      totalLeads: mockLeads.length,
-      wonDeals: wonDeals.length
+      totalLeads: leads.length,
+      wonDeals: wonDeals.length,
+      totalCustomers: customers.length,
+      totalInvoices: invoices.length
     };
-  }, []);
+  }, [leads, customers, invoices]);
 
-  const filteredLeads = mockLeads.filter(lead => {
+  const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -243,21 +212,51 @@ export function SalesPage() {
     });
   };
 
-  const handleCreateLead = () => {
-    console.log('Creating new lead:', newLead);
-    setShowNewLeadForm(false);
-    setNewLead({
-      name: '',
-      company: '',
-      email: '',
-      phone: '',
-      location: '',
-      source: 'Website',
-      value: '',
-      probability: '50',
-      notes: ''
-    });
+  const handleCreateLead = async () => {
+    try {
+      const response = await fetch('/api/leads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...newLead,
+          estimatedValue: parseFloat(newLead.estimatedValue) || 0,
+          probability: parseInt(newLead.probability) || 50
+        }),
+      });
+
+      if (response.ok) {
+        await fetchData(); // Refresh data
+        setShowNewLeadForm(false);
+        setNewLead({
+          name: '',
+          company: '',
+          email: '',
+          phone: '',
+          location: '',
+          source: 'Website',
+          estimatedValue: '',
+          probability: '50',
+          notes: ''
+        });
+      } else {
+        console.error('Failed to create lead');
+      }
+    } catch (error) {
+      console.error('Error creating lead:', error);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading sales data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -265,13 +264,9 @@ export function SalesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Sales</h1>
-          <p className="text-gray-600">Manage your sales pipeline, leads, and quotes</p>
+          <p className="text-gray-600">Manage your sales pipeline, leads, and performance</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => setShowNewQuoteForm(true)}>
-            <FileText className="h-4 w-4 mr-2" />
-            New Quote
-          </Button>
           <Button onClick={() => setShowNewLeadForm(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Lead
@@ -280,11 +275,10 @@ export function SalesPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-          <TabsTrigger value="quotes">Quotes</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -324,11 +318,11 @@ export function SalesPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Won Deals</p>
+                    <p className="text-sm font-medium text-gray-600">Revenue (Paid)</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(salesMetrics.totalWonValue)}
+                      {formatCurrency(salesMetrics.totalPaidRevenue)}
                     </p>
-                    <p className="text-sm text-gray-500">{salesMetrics.wonDeals} deals</p>
+                    <p className="text-sm text-gray-500">{salesMetrics.totalInvoices} invoices</p>
                   </div>
                   <CheckCircle className="h-8 w-8 text-green-600" />
                 </div>
@@ -361,25 +355,28 @@ export function SalesPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockLeads.slice(0, 5).map(lead => (
+                  {leads.slice(0, 5).map(lead => (
                     <div key={lead.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{lead.name}</p>
-                        <p className="text-sm text-gray-600">{lead.company}</p>
+                        <p className="text-sm text-gray-600">{lead.company || lead.email}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge className={statusColors[lead.status]}>
                             {lead.status}
                           </Badge>
                           <span className="text-sm text-gray-500">
-                            {formatCurrency(lead.value)}
+                            {formatCurrency(lead.estimatedValue)}
                           </span>
                         </div>
                       </div>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => setSelectedLead(lead)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
+                  {leads.length === 0 && (
+                    <p className="text-gray-500 text-center py-4">No leads yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -391,7 +388,7 @@ export function SalesPage() {
               <CardContent>
                 <div className="space-y-4">
                   {Object.entries(
-                    mockLeads.reduce((acc, lead) => {
+                    leads.reduce((acc, lead) => {
                       acc[lead.source] = (acc[lead.source] || 0) + 1;
                       return acc;
                     }, {} as Record<string, number>)
@@ -402,235 +399,188 @@ export function SalesPage() {
                           {source}
                         </Badge>
                       </div>
-                      <span className="font-medium">{count} leads</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{count}</span>
+                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${(count / leads.length) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
                     </div>
                   ))}
+                  {leads.length === 0 && (
+                    <p className="text-gray-500 text-center py-4">No data available</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* Pipeline Management */}
+        {/* Pipeline Tab */}
         <TabsContent value="pipeline" className="space-y-6">
           {/* Filters */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-gray-500" />
+            <div className="flex-1">
               <Input
                 placeholder="Search leads..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-64"
+                className="max-w-sm"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-48">
-                <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="New">New</SelectItem>
                 <SelectItem value="Contacted">Contacted</SelectItem>
                 <SelectItem value="Qualified">Qualified</SelectItem>
-                <SelectItem value="Proposal">Proposal</SelectItem>
-                <SelectItem value="Negotiation">Negotiation</SelectItem>
-                <SelectItem value="Won">Won</SelectItem>
+                <SelectItem value="Interested">Interested</SelectItem>
+                <SelectItem value="Converted">Converted</SelectItem>
                 <SelectItem value="Lost">Lost</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Pipeline Board */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {['New', 'Qualified', 'Proposal', 'Won'].map(status => {
-              const statusLeads = filteredLeads.filter(lead => lead.status === status);
-              const statusValue = statusLeads.reduce((sum, lead) => sum + lead.value, 0);
-              
-              return (
-                <Card key={status}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{status}</CardTitle>
-                      <Badge variant="secondary">{statusLeads.length}</Badge>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      {formatCurrency(statusValue)}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {statusLeads.map(lead => (
-                        <div
-                          key={lead.id}
-                          className="p-3 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                          onClick={() => setSelectedLead(lead)}
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-medium text-sm">{lead.name}</h4>
-                            <span className="text-xs text-gray-500">
-                              {lead.probability}%
-                            </span>
-                          </div>
-                          {lead.company && (
-                            <p className="text-xs text-gray-600 mb-1">{lead.company}</p>
-                          )}
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-green-600">
-                              {formatCurrency(lead.value)}
-                            </span>
-                            <Badge className={sourceColors[lead.source]}>
-                              {lead.source}
-                            </Badge>
-                          </div>
-                          {lead.nextFollowUp && (
-                            <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-                              <Clock className="h-3 w-3" />
-                              Follow up: {formatDate(lead.nextFollowUp)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </TabsContent>
-
-        {/* Quotes */}
-        <TabsContent value="quotes" className="space-y-6">
-          <div className="space-y-4">
-            {mockQuotes.map(quote => (
-              <Card key={quote.id} className="hover:shadow-md transition-shadow">
+          {/* Pipeline Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredLeads.map(lead => (
+              <Card key={lead.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg">{quote.title}</h3>
-                        <Badge className={statusColors[quote.status]}>
-                          {quote.status}
-                        </Badge>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
-                        <div>
-                          <span className="font-medium">Quote #:</span> {quote.quoteNumber}
-                        </div>
-                        <div>
-                          <span className="font-medium">Customer:</span> {quote.customer}
-                        </div>
-                        <div>
-                          <span className="font-medium">Value:</span> 
-                          <span className="font-semibold text-green-600 ml-1">
-                            {formatCurrency(quote.value)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Created:</span> {formatDate(quote.createdDate)}
-                        </div>
-                        <div>
-                          <span className="font-medium">Valid Until:</span> {formatDate(quote.validUntil)}
-                        </div>
-                      </div>
-
-                      {/* Quote Items Preview */}
-                      <div className="mt-4">
-                        <p className="text-sm font-medium text-gray-700 mb-2">Items:</p>
-                        <div className="space-y-1">
-                          {quote.items.slice(0, 2).map((item, index) => (
-                            <div key={index} className="text-sm text-gray-600">
-                              {item.description} - {item.quantity}x {formatCurrency(item.rate)}
-                            </div>
-                          ))}
-                          {quote.items.length > 2 && (
-                            <div className="text-sm text-gray-500">
-                              +{quote.items.length - 2} more items
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-lg">{lead.name}</h3>
+                      {lead.company && (
+                        <p className="text-sm text-gray-600">{lead.company}</p>
+                      )}
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Send className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4" />
-                      </Button>
+                    <Badge className={statusColors[lead.status]}>
+                      {lead.status}
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Mail className="h-4 w-4" />
+                      {lead.email}
                     </div>
+                    {lead.phone && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Phone className="h-4 w-4" />
+                        {lead.phone}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4" />
+                      {lead.location}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Estimated Value</p>
+                      <p className="font-semibold">{formatCurrency(lead.estimatedValue)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">Probability</p>
+                      <p className="font-semibold">{lead.probability}%</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
+            {filteredLeads.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No leads found matching your criteria</p>
+              </div>
+            )}
           </div>
         </TabsContent>
 
-        {/* Analytics */}
+        {/* Analytics Tab */}
         <TabsContent value="analytics" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Sales Funnel</CardTitle>
+                <CardTitle>Lead Status Distribution</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {['New', 'Contacted', 'Qualified', 'Proposal', 'Won'].map((status, index) => {
-                    const count = mockLeads.filter(lead => lead.status === status).length;
-                    const percentage = mockLeads.length > 0 ? (count / mockLeads.length) * 100 : 0;
-                    
-                    return (
-                      <div key={status} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>{status}</span>
-                          <span>{count} leads ({percentage.toFixed(1)}%)</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${percentage}%` }}
+                  {Object.entries(
+                    leads.reduce((acc, lead) => {
+                      acc[lead.status] = (acc[lead.status] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)
+                  ).map(([status, count]) => (
+                    <div key={status} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className={statusColors[status as keyof typeof statusColors]}>
+                          {status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{count}</span>
+                        <div className="w-20 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${(count / leads.length) * 100}%` }}
                           ></div>
                         </div>
+                        <span className="text-xs text-gray-500 w-8">
+                          {leads.length > 0 ? Math.round((count / leads.length) * 100) : 0}%
+                        </span>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
+                  {leads.length === 0 && (
+                    <p className="text-gray-500 text-center py-4">No data available</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Performance Metrics</CardTitle>
+                <CardTitle>Performance Summary</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                    <span className="text-sm font-medium">Average Deal Size</span>
-                    <span className="font-bold">{formatCurrency(salesMetrics.avgDealSize)}</span>
+                  <div className="flex justify-between items-center p-3 bg-blue-50 rounded">
+                    <span className="font-medium">Total Leads</span>
+                    <span className="font-bold text-blue-600">{salesMetrics.totalLeads}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-green-50 rounded">
+                    <span className="font-medium">Converted Leads</span>
+                    <span className="font-bold text-green-600">{salesMetrics.wonDeals}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-purple-50 rounded">
+                    <span className="font-medium">Conversion Rate</span>
+                    <span className="font-bold text-purple-600">{salesMetrics.conversionRate.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-orange-50 rounded">
+                    <span className="font-medium">Avg Deal Size</span>
+                    <span className="font-bold text-orange-600">{formatCurrency(salesMetrics.avgDealSize)}</span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                    <span className="text-sm font-medium">Conversion Rate</span>
-                    <span className="font-bold">{salesMetrics.conversionRate.toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                    <span className="text-sm font-medium">Total Leads</span>
-                    <span className="font-bold">{salesMetrics.totalLeads}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                    <span className="text-sm font-medium">Active Quotes</span>
-                    <span className="font-bold">{mockQuotes.filter(q => q.status === 'Sent').length}</span>
+                    <span className="font-medium">Total Customers</span>
+                    <span className="font-bold text-gray-600">{salesMetrics.totalCustomers}</span>
                   </div>
                 </div>
               </CardContent>
@@ -641,241 +591,179 @@ export function SalesPage() {
 
       {/* New Lead Form Modal */}
       {showNewLeadForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Add New Lead</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="leadName">Name *</Label>
-                  <Input
-                    id="leadName"
-                    value={newLead.name}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Lead name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="leadCompany">Company</Label>
-                  <Input
-                    id="leadCompany"
-                    value={newLead.company}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, company: e.target.value }))}
-                    placeholder="Company name"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="leadEmail">Email *</Label>
-                  <Input
-                    id="leadEmail"
-                    type="email"
-                    value={newLead.email}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="email@example.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="leadPhone">Phone</Label>
-                  <Input
-                    id="leadPhone"
-                    value={newLead.phone}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="leadLocation">Location</Label>
-                  <Input
-                    id="leadLocation"
-                    value={newLead.location}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, location: e.target.value }))}
-                    placeholder="City, State"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="leadSource">Source</Label>
-                  <Select value={newLead.source} onValueChange={(value: SalesLead['source']) => setNewLead(prev => ({ ...prev, source: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Website">Website</SelectItem>
-                      <SelectItem value="Referral">Referral</SelectItem>
-                      <SelectItem value="Cold Call">Cold Call</SelectItem>
-                      <SelectItem value="Social Media">Social Media</SelectItem>
-                      <SelectItem value="Advertisement">Advertisement</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="leadValue">Estimated Value ($)</Label>
-                  <Input
-                    id="leadValue"
-                    type="number"
-                    value={newLead.value}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, value: e.target.value }))}
-                    placeholder="25000"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="leadProbability">Probability (%)</Label>
-                  <Input
-                    id="leadProbability"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={newLead.probability}
-                    onChange={(e) => setNewLead(prev => ({ ...prev, probability: e.target.value }))}
-                  />
-                </div>
-              </div>
-
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-semibold mb-4">Add New Lead</h2>
+            <div className="space-y-4">
               <div>
-                <Label htmlFor="leadNotes">Notes</Label>
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  value={newLead.name}
+                  onChange={(e) => setNewLead({ ...newLead, name: e.target.value })}
+                  placeholder="Lead name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newLead.email}
+                  onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
+                  placeholder="lead@email.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={newLead.phone}
+                  onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+              <div>
+                <Label htmlFor="company">Company</Label>
+                <Input
+                  id="company"
+                  value={newLead.company}
+                  onChange={(e) => setNewLead({ ...newLead, company: e.target.value })}
+                  placeholder="Company name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={newLead.location}
+                  onChange={(e) => setNewLead({ ...newLead, location: e.target.value })}
+                  placeholder="City, State"
+                />
+              </div>
+              <div>
+                <Label htmlFor="source">Source</Label>
+                <Select value={newLead.source} onValueChange={(value) => setNewLead({ ...newLead, source: value as Lead['source'] })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Website">Website</SelectItem>
+                    <SelectItem value="Referral">Referral</SelectItem>
+                    <SelectItem value="Cold Call">Cold Call</SelectItem>
+                    <SelectItem value="Social Media">Social Media</SelectItem>
+                    <SelectItem value="Advertisement">Advertisement</SelectItem>
+                    <SelectItem value="Trade Show">Trade Show</SelectItem>
+                    <SelectItem value="Google Ads">Google Ads</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="estimatedValue">Estimated Value</Label>
+                <Input
+                  id="estimatedValue"
+                  type="number"
+                  value={newLead.estimatedValue}
+                  onChange={(e) => setNewLead({ ...newLead, estimatedValue: e.target.value })}
+                  placeholder="25000"
+                />
+              </div>
+              <div>
+                <Label htmlFor="notes">Notes</Label>
                 <Textarea
-                  id="leadNotes"
+                  id="notes"
                   value={newLead.notes}
-                  onChange={(e) => setNewLead(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Additional notes about the lead"
+                  onChange={(e) => setNewLead({ ...newLead, notes: e.target.value })}
+                  placeholder="Additional notes..."
                   rows={3}
                 />
               </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowNewLeadForm(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateLead}>
-                  Add Lead
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setShowNewLeadForm(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateLead}>
+                Create Lead
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Lead Details Modal */}
       {selectedLead && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{selectedLead.name}</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => setSelectedLead(null)}>
-                  ×
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Badge className={statusColors[selectedLead.status]}>
-                  {selectedLead.status}
-                </Badge>
-                <Badge className={sourceColors[selectedLead.source]}>
-                  {selectedLead.source}
-                </Badge>
-              </div>
-              
-              <div className="space-y-3">
-                {selectedLead.company && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">{selectedLead.name}</h2>
+              <Button variant="outline" onClick={() => setSelectedLead(null)}>
+                Close
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-medium mb-3">Contact Information</h3>
+                <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-500" />
-                    <span>{selectedLead.company}</span>
+                    <Mail className="h-4 w-4 text-gray-500" />
+                    <span>{selectedLead.email}</span>
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-gray-500" />
-                  <span>{selectedLead.email}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-gray-500" />
-                  <span>{selectedLead.phone}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-gray-500" />
-                  <span>{selectedLead.location}</span>
-                </div>
-              </div>
-              
-              <div className="p-3 bg-green-50 rounded">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Estimated Value:</span>
-                  <span className="font-semibold text-green-600">
-                    {formatCurrency(selectedLead.value)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-sm text-gray-600">Probability:</span>
-                  <span className="font-semibold">{selectedLead.probability}%</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="text-sm">
-                  <span className="font-medium">Created:</span> {formatDate(selectedLead.createdDate)}
-                </div>
-                <div className="text-sm">
-                  <span className="font-medium">Last Contact:</span> {formatDate(selectedLead.lastContact)}
-                </div>
-                {selectedLead.nextFollowUp && (
-                  <div className="text-sm">
-                    <span className="font-medium">Next Follow-up:</span> {formatDate(selectedLead.nextFollowUp)}
+                  {selectedLead.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-500" />
+                      <span>{selectedLead.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-gray-500" />
+                    <span>{selectedLead.location}</span>
                   </div>
-                )}
-              </div>
-              
-              {selectedLead.notes && (
-                <div>
-                  <Label>Notes</Label>
-                  <p className="text-sm text-gray-600 mt-1">{selectedLead.notes}</p>
+                  {selectedLead.company && (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <span>{selectedLead.company}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <Button>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Contact
-                </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* New Quote Form Placeholder */}
-      {showNewQuoteForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Create New Quote</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">Quote creation form will be implemented here.</p>
-              <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setShowNewQuoteForm(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => setShowNewQuoteForm(false)}>
-                  Create Quote
-                </Button>
+              <div>
+                <h3 className="font-medium mb-3">Lead Details</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <Badge className={statusColors[selectedLead.status]}>
+                      {selectedLead.status}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Source:</span>
+                    <Badge className={sourceColors[selectedLead.source]}>
+                      {selectedLead.source}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Estimated Value:</span>
+                    <span className="font-medium">{formatCurrency(selectedLead.estimatedValue)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Probability:</span>
+                    <span className="font-medium">{selectedLead.probability}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Created:</span>
+                    <span>{formatDate(selectedLead.createdDate)}</span>
+                  </div>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            {selectedLead.notes && (
+              <div className="mt-6">
+                <h3 className="font-medium mb-2">Notes</h3>
+                <p className="text-gray-700 bg-gray-50 p-3 rounded">{selectedLead.notes}</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
