@@ -189,7 +189,7 @@ For more information about updating existing blobs, see the [Overwriting blobs](
 
 For optimal performance and to avoid caching issues, consider treating blobs as immutable objects:
 
-- Instead of updating existing blobs, create new ones with different pathnames (or use `addRandomSuffix: true` option)
+- Instead of updating existing blobs, create new ones with different pathname (or use `addRandomSuffix: true` option)
 - This approach avoids unexpected behaviors like outdated content appearing in your application
 
 There are still valid use cases for mutable blobs with shorter cache durations, such as a single JSON file that's updated every 5 minutes with a top list of sales or other regularly refreshed data. For these scenarios, set an appropriate `cacheControlMaxAge` value and be mindful of caching behaviors.
@@ -234,15 +234,17 @@ const blob = await put('avatar.jpg', imageFile, {
   access: 'public',
   addRandomSuffix: true, // Creates a pathname like 'avatar-oYnXSVczoLa9yBYMFJOSNdaiiervF5.jpg'
 });
-```
+
 
 2. Generate unique pathnames programmatically: Create unique pathnames by adding timestamps, UUIDs, or other identifiers:
 
 ```
+
 const timestamp = Date.now();
 const blob = await put(`user-profile-${timestamp}.jpg`, imageFile, {
   access: 'public',
 });
+
 ```
 
 ## [Blob Data Transfer](#blob-data-transfer)
@@ -397,17 +399,21 @@ These guarantees are backed by [S3's robust architecture](https://docs.aws.amazo
 Vercel Blob has folders support to organize your blobs:
 
 ```
+
 const blob = await put('folder/file.txt', 'Hello World!', { access: 'public' });
+
 ```
 
 The path `folder/file.txt` creates a folder named `folder` and a blob named `file.txt`. To list all blobs within a folder, use the [`list`](/docs/storage/vercel-blob/using-blob-sdk#list-blobs) function:
 
 ```
+
 const listOfBlobs = await list({
   cursor,
   limit: 1000,
   prefix: 'folder/',
 });
+
 ```
 
 You don't need to create folders. Upload a file with a path containing a slash `/`, and Vercel Blob will interpret the slashes as folder delimiters.
@@ -421,17 +427,21 @@ Blobs are returned in lexicographical order by pathname (not creation date) when
 Sort by creation date: Include timestamps in pathnames:
 
 ```
-const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+const timestamp = new Date().toISOString().split['T'](0); // YYYY-MM-DD
 await put(`reports/${timestamp}-quarterly-report.pdf`, file, {
   access: 'public',
 });
+
 ```
 
 Use prefixes for search: Consider lowercase pathnames for consistent matching:
 
 ```
+
 await put('user-uploads/avatar.jpg', file, { access: 'public' });
 const userUploads = await list({ prefix: 'user-uploads/' });
+
 ```
 
 For complex sorting, sort results client-side using `uploadedAt` or other properties.

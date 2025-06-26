@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Mail, MessageSquare, Smartphone, Clock, DollarSign } from 'lucide-react';
+import { Bell, Mail, MessageSquare, Clock } from 'lucide-react';
 
 interface NotificationSettings {
   email: {

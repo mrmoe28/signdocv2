@@ -5,12 +5,15 @@ This guide explains how to configure and use the Stripe payment integration for 
 ## 🚀 Quick Setup
 
 ### 1. Install Dependencies
+
 The following packages have been added to the project:
+
 ```bash
 npm install stripe @prisma/client prisma
 ```
 
 ### 2. Environment Variables
+
 Create a `.env.local` file in your project root and add:
 
 ```env
@@ -24,11 +27,13 @@ DATABASE_URL="file:./dev.db"
 ```
 
 **To get your Stripe keys:**
+
 1. Go to [Stripe Dashboard](https://dashboard.stripe.com/apikeys)
 2. Copy your **Secret Key** (starts with `sk_test_` for test mode)
 3. For the webhook secret, create a webhook endpoint (see below)
 
 ### 3. Database Setup
+
 The database has been configured with SQLite and includes an Invoice model:
 
 ```bash
@@ -43,6 +48,7 @@ npm run db:studio
 ```
 
 ### 4. Webhook Configuration
+
 Set up a webhook in your Stripe Dashboard:
 
 1. Go to [Stripe Webhooks](https://dashboard.stripe.com/webhooks)
@@ -54,10 +60,12 @@ Set up a webhook in your Stripe Dashboard:
 ## 📁 Files Created
 
 ### API Routes (App Router)
+
 - `src/app/api/stripe/checkout/route.ts` - Creates Stripe checkout sessions
 - `src/app/api/stripe/webhook/route.ts` - Handles payment completion webhooks
 
 ### Database & Utilities  
+
 - `src/lib/db.ts` - Prisma client configuration
 - `prisma/schema.prisma` - Database schema with Invoice model
 - Updated `src/lib/invoice-utils.ts` - Added `createStripeCheckoutSession()` utility
@@ -105,6 +113,7 @@ const handlePayment = async () => {
 ## 🧪 Testing
 
 Use Stripe's test card numbers:
+
 - **Success**: `4242 4242 4242 4242`
 - **Decline**: `4000 0000 0000 0002`
 - **3D Secure**: `4000 0000 0000 3220`
@@ -139,4 +148,4 @@ npm run db:studio      # Open Prisma Studio
 - This integration does **NOT** modify existing UI components
 - Payment status updates happen automatically via webhooks
 - Test mode uses Stripe's test environment - no real charges
-- For production, use live API keys and configure webhook URLs accordingly 
+- For production, use live API keys and configure webhook URLs accordingly

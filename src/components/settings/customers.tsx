@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,46 +34,62 @@ interface Customer {
   lastInvoiceDate?: string;
 }
 
-const mockCustomers: Customer[] = [
-  {
-    id: '1',
-    name: 'John Smith',
-    company: 'ABC Corp',
-    email: 'john@abccorp.com',
-    phone: '(555) 123-4567',
-    address: {
-      street: '123 Business St',
-      city: 'New York',
-      state: 'NY',
-      zipCode: '10001'
-    },
-    notes: 'Preferred customer, always pays on time',
-    status: 'active',
-    totalInvoiced: 15250.00,
-    lastInvoiceDate: '2024-01-15'
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    company: 'XYZ Inc',
-    email: 'sarah@xyzinc.com',
-    phone: '(555) 987-6543',
-    status: 'active',
-    totalInvoiced: 8750.00,
-    lastInvoiceDate: '2024-01-10'
-  },
-  {
-    id: '3',
-    name: 'Mike Wilson',
-    email: 'mike.wilson@email.com',
-    phone: '(555) 456-7890',
-    status: 'inactive',
-    totalInvoiced: 2100.00
-  }
-];
-
 export function Customers() {
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch customers from API
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/customers');
+      if (!response.ok) {
+        throw new Error('Failed to fetch customers');
+      }
+             const data = await response.json();
+       const apiCustomers = (data.customers || []).map((customer: {
+         id: string;
+         name: string;
+         company?: string;
+         email: string;
+         phone?: string;
+         address?: string;
+         city?: string;
+         state?: string;
+         zipCode?: string;
+         notes?: string;
+         updatedAt: string;
+       }) => ({
+        id: customer.id,
+        name: customer.name,
+        company: customer.company || undefined,
+        email: customer.email,
+        phone: customer.phone || undefined,
+        address: customer.address ? {
+          street: customer.address,
+          city: customer.city || '',
+          state: customer.state || '',
+          zipCode: customer.zipCode || ''
+        } : undefined,
+        notes: customer.notes || undefined,
+        status: 'active' as const,
+        totalInvoiced: 0, // TODO: Calculate from invoices
+        lastInvoiceDate: customer.updatedAt
+      }));
+      setCustomers(apiCustomers);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+      setError('Failed to load customers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -127,39 +143,73 @@ export function Customers() {
     setShowForm(true);
   };
 
-  const handleSave = () => {
-    const newCustomer: Customer = {
-      id: selectedCustomer?.id || Date.now().toString(),
-      name: formData.name,
-      company: formData.company || undefined,
-      email: formData.email,
-      phone: formData.phone || undefined,
-      address: (formData.street || formData.city) ? {
-        street: formData.street,
-        city: formData.city,
-        state: formData.state,
-        zipCode: formData.zipCode
-      } : undefined,
-      notes: formData.notes || undefined,
-      status: formData.status,
-      totalInvoiced: selectedCustomer?.totalInvoiced || 0,
-      lastInvoiceDate: selectedCustomer?.lastInvoiceDate
-    };
+  const handleSave = async () => {
+    try {
+      const customerData = {
+        name: formData.name,
+        company: formData.company || undefined,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        address: formData.street || undefined,
+        city: formData.city || undefined,
+        state: formData.state || undefined,
+        zipCode: formData.zipCode || undefined,
+        notes: formData.notes || undefined,
+      };
 
-    if (isEditing && selectedCustomer) {
-      setCustomers(prev => prev.map(c => c.id === selectedCustomer.id ? newCustomer : c));
-    } else {
-      setCustomers(prev => [...prev, newCustomer]);
+      if (isEditing && selectedCustomer) {
+        // Update existing customer
+        const response = await fetch(`/api/customers/${selectedCustomer.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customerData)
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update customer');
+        }
+      } else {
+        // Create new customer
+        const response = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customerData)
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create customer');
+        }
+      }
+
+      // Refresh the customer list
+      await fetchCustomers();
+      
+      setShowForm(false);
+      setSelectedCustomer(null);
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Error saving customer:', err);
+      alert('Failed to save customer. Please try again.');
     }
-
-    setShowForm(false);
-    setSelectedCustomer(null);
-    setIsEditing(false);
   };
 
-  const handleDelete = (customerId: string) => {
+  const handleDelete = async (customerId: string) => {
     if (confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
-      setCustomers(prev => prev.filter(c => c.id !== customerId));
+      try {
+        const response = await fetch(`/api/customers/${customerId}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete customer');
+        }
+
+        // Refresh the customer list
+        await fetchCustomers();
+      } catch (err) {
+        console.error('Error deleting customer:', err);
+        alert('Failed to delete customer. Please try again.');
+      }
     }
   };
 
@@ -175,6 +225,32 @@ export function Customers() {
       currency: 'USD'
     }).format(amount);
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading customers...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={fetchCustomers}>Try Again</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">

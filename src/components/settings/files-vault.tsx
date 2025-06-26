@@ -95,6 +95,7 @@ export function FilesVault() {
   const getFileIcon = (type: string) => {
     switch (type) {
       case 'image':
+        // eslint-disable-next-line jsx-a11y/alt-text
         return <Image className="h-4 w-4" />;
       case 'pdf':
         return <FileText className="h-4 w-4 text-red-600" />;

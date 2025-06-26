@@ -11,6 +11,12 @@ import { FilesVault } from '@/components/settings/files-vault';
 import { TaxRates } from '@/components/settings/tax-rates';
 import { Customers } from '@/components/settings/customers';
 import { MyBusiness } from '@/components/settings/my-business';
+import { Schedule } from '@/components/settings/schedule';
+import { Estimates } from '@/components/settings/estimates';
+import { Invoices } from '@/components/settings/invoices';
+import { WorkOrders } from '@/components/settings/work-orders';
+import { Leads } from '@/components/settings/leads';
+import { CreditNotes } from '@/components/settings/credit-notes';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('online-payments');
@@ -39,65 +45,17 @@ export default function SettingsPage() {
       case 'my-business':
         return <MyBusiness />;
       case 'schedule':
-        return (
-          <div className="max-w-4xl mx-auto p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Schedule</h1>
-            <p className="text-gray-600">Manage your work schedule and appointments.</p>
-            <div className="mt-8 text-center text-gray-500">
-              <p>Schedule section coming soon.</p>
-            </div>
-          </div>
-        );
+        return <Schedule />;
       case 'estimates':
-        return (
-          <div className="max-w-4xl mx-auto p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Estimates</h1>
-            <p className="text-gray-600">Manage your estimates and quotes.</p>
-            <div className="mt-8 text-center text-gray-500">
-              <p>Estimates section coming soon.</p>
-            </div>
-          </div>
-        );
+        return <Estimates />;
       case 'invoices':
-        return (
-          <div className="max-w-4xl mx-auto p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Invoices</h1>
-            <p className="text-gray-600">Manage your invoice settings and preferences.</p>
-            <div className="mt-8 text-center text-gray-500">
-              <p>Invoice settings section coming soon.</p>
-            </div>
-          </div>
-        );
+        return <Invoices />;
       case 'work-orders':
-        return (
-          <div className="max-w-4xl mx-auto p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Work Orders</h1>
-            <p className="text-gray-600">Manage your work orders and job tracking.</p>
-            <div className="mt-8 text-center text-gray-500">
-              <p>Work Orders section coming soon.</p>
-            </div>
-          </div>
-        );
+        return <WorkOrders />;
       case 'leads':
-        return (
-          <div className="max-w-4xl mx-auto p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Leads</h1>
-            <p className="text-gray-600">Manage your leads and prospects.</p>
-            <div className="mt-8 text-center text-gray-500">
-              <p>Leads section coming soon.</p>
-            </div>
-          </div>
-        );
+        return <Leads />;
       case 'credit-notes':
-        return (
-          <div className="max-w-4xl mx-auto p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Credit Notes</h1>
-            <p className="text-gray-600">Manage your credit notes and refunds.</p>
-            <div className="mt-8 text-center text-gray-500">
-              <p>Credit Notes section coming soon.</p>
-            </div>
-          </div>
-        );
+        return <CreditNotes />;
       default:
         return (
           <div className="max-w-4xl mx-auto p-6">
