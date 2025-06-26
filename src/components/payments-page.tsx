@@ -5,6 +5,9 @@ import { useToast } from '@/components/ui/toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -22,7 +25,8 @@ import {
   XCircle,
   TrendingUp,
   DollarSign,
-  Trash2
+  Trash2,
+  Plus
 } from 'lucide-react';
 
 interface Payment {
@@ -91,6 +95,16 @@ export function PaymentsPage() {
   const { addToast } = useToast();
   const [payments, setPayments] = useState<Payment[]>(mockPayments);
   const [loading, setLoading] = useState(false);
+  const [showAddPaymentForm, setShowAddPaymentForm] = useState(false);
+  const [newPayment, setNewPayment] = useState({
+    invoiceNumber: '',
+    customerName: '',
+    amount: '',
+    status: 'Paid' as Payment['status'],
+    paymentMethod: 'cash',
+    paymentDate: new Date().toISOString().split('T')[0],
+    description: ''
+  });
 
   const handleProcessPayment = async (payment: Payment) => {
     if (payment.status !== 'Pending') return;
@@ -136,6 +150,60 @@ export function PaymentsPage() {
     }
   };
 
+  const handleAddPayment = () => {
+    // Validation
+    if (!newPayment.customerName || !newPayment.amount || !newPayment.invoiceNumber) {
+      addToast({
+        type: 'warning',
+        title: 'Validation Error',
+        description: 'Please fill in all required fields (invoice number, customer name, and amount).'
+      });
+      return;
+    }
+
+    const amount = parseFloat(newPayment.amount);
+    if (isNaN(amount) || amount <= 0) {
+      addToast({
+        type: 'warning',
+        title: 'Invalid Amount',
+        description: 'Please enter a valid amount greater than 0.'
+      });
+      return;
+    }
+
+    // Create new payment entry
+    const payment: Payment = {
+      id: Math.random().toString(36).substring(2, 9),
+      invoiceId: newPayment.invoiceNumber,
+      invoiceNumber: newPayment.invoiceNumber,
+      customerName: newPayment.customerName,
+      amount: amount,
+      status: newPayment.status,
+      paymentDate: newPayment.paymentDate,
+      paymentMethod: newPayment.paymentMethod
+    };
+
+    setPayments(prev => [payment, ...prev]);
+    
+    addToast({
+      type: 'success',
+      title: 'Payment Added',
+      description: 'Manual payment entry has been successfully added.'
+    });
+
+    // Reset form and close modal
+    setNewPayment({
+      invoiceNumber: '',
+      customerName: '',
+      amount: '',
+      status: 'Paid',
+      paymentMethod: 'cash',
+      paymentDate: new Date().toISOString().split('T')[0],
+      description: ''
+    });
+    setShowAddPaymentForm(false);
+  };
+
   const stats = {
     totalPaid: payments.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0),
     totalPending: payments.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount, 0),
@@ -151,9 +219,15 @@ export function PaymentsPage() {
           <h1 className="text-3xl font-bold">Payments</h1>
           <p className="text-muted-foreground">Track and process invoice payments via Stripe</p>
         </div>
-        <div className="flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-blue-600" />
-          <span className="text-sm font-medium">Powered by Stripe</span>
+        <div className="flex items-center gap-4">
+          <Button onClick={() => setShowAddPaymentForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Payment
+          </Button>
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-medium">Powered by Stripe</span>
+          </div>
         </div>
       </div>
 
@@ -294,6 +368,100 @@ export function PaymentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Payment Modal */}
+      {showAddPaymentForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Add Manual Payment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="invoiceNumber">Invoice Number</Label>
+                <Input
+                  id="invoiceNumber"
+                  value={newPayment.invoiceNumber}
+                  onChange={(e) => setNewPayment(prev => ({ ...prev, invoiceNumber: e.target.value }))}
+                  placeholder="INV-2024-001"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="customerName">Customer Name</Label>
+                <Input
+                  id="customerName"
+                  value={newPayment.customerName}
+                  onChange={(e) => setNewPayment(prev => ({ ...prev, customerName: e.target.value }))}
+                  placeholder="Customer name"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="amount">Amount ($)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={newPayment.amount}
+                  onChange={(e) => setNewPayment(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <Select value={newPayment.status} onValueChange={(value: Payment['status']) => setNewPayment(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Paid">Paid</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Failed">Failed</SelectItem>
+                    <SelectItem value="Refunded">Refunded</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="paymentMethod">Payment Method</Label>
+                <Select value={newPayment.paymentMethod} onValueChange={(value) => setNewPayment(prev => ({ ...prev, paymentMethod: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="check">Check</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="card">Credit Card</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="paymentDate">Payment Date</Label>
+                <Input
+                  id="paymentDate"
+                  type="date"
+                  value={newPayment.paymentDate}
+                  onChange={(e) => setNewPayment(prev => ({ ...prev, paymentDate: e.target.value }))}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" onClick={() => setShowAddPaymentForm(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddPayment}>
+                  Add Payment
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 } 
