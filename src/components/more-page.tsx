@@ -16,9 +16,6 @@ import {
   Shield,
   Database,
   Plug,
-  Bell,
-  Palette,
-  Key,
   Download,
   Upload,
   Trash2,
@@ -26,23 +23,13 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Info,
-  ExternalLink,
   Copy,
   Eye,
   EyeOff,
   Save,
   Plus,
   Edit,
-  Globe,
-  Mail,
-  Phone,
-  MapPin,
-  CreditCard,
-  Zap,
-  FileText,
-  HelpCircle,
-  LogOut
+  HelpCircle
 } from 'lucide-react';
 
 interface Integration {
@@ -237,13 +224,43 @@ export function MorePage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs>
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
+          <TabsTrigger 
+            value="overview" 
+            onClick={() => setActiveTab('overview')}
+            data-state={activeTab === 'overview' ? 'active' : 'inactive'}
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="integrations" 
+            onClick={() => setActiveTab('integrations')}
+            data-state={activeTab === 'integrations' ? 'active' : 'inactive'}
+          >
+            Integrations
+          </TabsTrigger>
+          <TabsTrigger 
+            value="users" 
+            onClick={() => setActiveTab('users')}
+            data-state={activeTab === 'users' ? 'active' : 'inactive'}
+          >
+            User Management
+          </TabsTrigger>
+          <TabsTrigger 
+            value="settings" 
+            onClick={() => setActiveTab('settings')}
+            data-state={activeTab === 'settings' ? 'active' : 'inactive'}
+          >
+            Settings
+          </TabsTrigger>
+          <TabsTrigger 
+            value="system" 
+            onClick={() => setActiveTab('system')}
+            data-state={activeTab === 'system' ? 'active' : 'inactive'}
+          >
+            System
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
