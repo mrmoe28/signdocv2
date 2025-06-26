@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users,
-  UserPlus,
   TrendingUp,
   Target,
   Phone,
@@ -26,12 +25,9 @@ import {
   Eye,
   MessageSquare,
   Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Globe,
   Share2,
-  BarChart3
+  BarChart3,
+  Trash2
 } from 'lucide-react';
 
 interface Lead {
@@ -56,66 +52,7 @@ interface Lead {
   priority: 'High' | 'Medium' | 'Low';
 }
 
-const mockLeads: Lead[] = [
-  {
-    id: '1',
-    name: 'Jennifer Wilson',
-    email: 'jennifer@email.com',
-    phone: '(555) 234-5678',
-    company: 'Wilson Enterprises',
-    location: 'Atlanta, GA',
-    source: 'Website',
-    status: 'Qualified',
-    score: 85,
-    estimatedValue: 35000,
-    probability: 70,
-    assignedTo: 'Edward Harrison',
-    createdDate: '2024-01-10',
-    lastContact: '2024-01-14',
-    nextFollowUp: '2024-01-18',
-    notes: 'Interested in commercial solar installation for office building',
-    tags: ['commercial', 'solar', 'high-value'],
-    interests: ['Commercial Solar', 'Energy Storage'],
-    priority: 'High'
-  },
-  {
-    id: '2',
-    name: 'Robert Chen',
-    email: 'robert.chen@email.com',
-    phone: '(555) 345-6789',
-    location: 'Marietta, GA',
-    source: 'Google Ads',
-    status: 'Contacted',
-    score: 65,
-    estimatedValue: 22000,
-    probability: 45,
-    assignedTo: 'Edward Harrison',
-    createdDate: '2024-01-12',
-    lastContact: '2024-01-15',
-    nextFollowUp: '2024-01-19',
-    notes: 'Residential installation, needs financing options',
-    tags: ['residential', 'financing'],
-    interests: ['Residential Solar'],
-    priority: 'Medium'
-  },
-  {
-    id: '3',
-    name: 'Maria Rodriguez',
-    email: 'maria.rodriguez@email.com',
-    phone: '(555) 456-7890',
-    location: 'Decatur, GA',
-    source: 'Referral',
-    status: 'New',
-    score: 40,
-    estimatedValue: 18000,
-    probability: 25,
-    assignedTo: 'Edward Harrison',
-    createdDate: '2024-01-16',
-    tags: ['residential', 'referral'],
-    interests: ['Residential Solar'],
-    priority: 'Low'
-  }
-];
+// Remove mock data - now using API
 
 const statusColors = {
   'New': 'bg-blue-100 text-blue-800',
@@ -150,6 +87,10 @@ export function LeadsPage() {
   const [sourceFilter, setSourceFilter] = useState('all');
   const [showNewLeadForm, setShowNewLeadForm] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [newLead, setNewLead] = useState({
     name: '',
@@ -163,17 +104,46 @@ export function LeadsPage() {
     interests: [] as string[]
   });
 
+  // Fetch leads from API
+  const fetchLeads = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/leads');
+      if (response.ok) {
+        const data = await response.json();
+        // Parse JSON fields for each lead
+        const leadsWithParsedFields = data.map((lead: any) => ({
+          ...lead,
+          tags: typeof lead.tags === 'string' ? JSON.parse(lead.tags || '[]') : lead.tags || [],
+          interests: typeof lead.interests === 'string' ? JSON.parse(lead.interests || '[]') : lead.interests || []
+        }));
+        setLeads(leadsWithParsedFields);
+      } else {
+        console.error('Failed to fetch leads');
+      }
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load leads on component mount
+  useEffect(() => {
+    fetchLeads();
+  }, []);
+
   // Calculate lead metrics
   const leadMetrics = useMemo(() => {
-    const totalLeads = mockLeads.length;
-    const qualifiedLeads = mockLeads.filter(lead => lead.status === 'Qualified').length;
-    const convertedLeads = mockLeads.filter(lead => lead.status === 'Converted').length;
-    const totalValue = mockLeads.reduce((sum, lead) => sum + lead.estimatedValue, 0);
-    const avgScore = mockLeads.reduce((sum, lead) => sum + lead.score, 0) / totalLeads;
+    const totalLeads = leads.length;
+    const qualifiedLeads = leads.filter(lead => lead.status === 'Qualified').length;
+    const convertedLeads = leads.filter(lead => lead.status === 'Converted').length;
+    const totalValue = leads.reduce((sum, lead) => sum + lead.estimatedValue, 0);
+    const avgScore = totalLeads > 0 ? leads.reduce((sum, lead) => sum + lead.score, 0) / totalLeads : 0;
     const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
     const qualificationRate = totalLeads > 0 ? (qualifiedLeads / totalLeads) * 100 : 0;
 
-    const leadsBySource = mockLeads.reduce((acc, lead) => {
+    const leadsBySource = leads.reduce((acc, lead) => {
       acc[lead.source] = (acc[lead.source] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -188,9 +158,9 @@ export function LeadsPage() {
       qualificationRate,
       leadsBySource
     };
-  }, []);
+  }, [leads]);
 
-  const filteredLeads = mockLeads.filter(lead => {
+  const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.company?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -220,20 +190,94 @@ export function LeadsPage() {
     return 'text-red-600';
   };
 
-  const handleCreateLead = () => {
-    console.log('Creating new lead:', newLead);
-    setShowNewLeadForm(false);
-    setNewLead({
-      name: '',
-      email: '',
-      phone: '',
-      company: '',
-      location: '',
-      source: 'Website',
-      estimatedValue: '',
-      notes: '',
-      interests: []
-    });
+  const handleCreateLead = async () => {
+    try {
+      const response = await fetch('/api/leads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...newLead,
+          estimatedValue: parseFloat(newLead.estimatedValue) || 0,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchLeads(); // Refresh the leads list
+        setShowNewLeadForm(false);
+        setNewLead({
+          name: '',
+          email: '',
+          phone: '',
+          company: '',
+          location: '',
+          source: 'Website',
+          estimatedValue: '',
+          notes: '',
+          interests: []
+        });
+      } else {
+        const error = await response.json();
+        alert(`Failed to create lead: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error creating lead:', error);
+      alert('Failed to create lead');
+    }
+  };
+
+  const handleEditLead = (lead: Lead) => {
+    setEditingLead(lead);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateLead = async (leadData: Partial<Lead>) => {
+    if (!editingLead) return;
+
+    try {
+      const response = await fetch(`/api/leads/${editingLead.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(leadData),
+      });
+
+      if (response.ok) {
+        await fetchLeads(); // Refresh the leads list
+        setShowEditDialog(false);
+        setEditingLead(null);
+      } else {
+        const error = await response.json();
+        alert(`Failed to update lead: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error updating lead:', error);
+      alert('Failed to update lead');
+    }
+  };
+
+  const handleDeleteLead = async (leadId: string) => {
+    if (!confirm('Are you sure you want to delete this lead?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/leads/${leadId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await fetchLeads(); // Refresh the leads list
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete lead: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+      alert('Failed to delete lead');
+    }
   };
 
   return (
@@ -336,7 +380,7 @@ export function LeadsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {mockLeads.slice(0, 5).map(lead => (
+                  {leads.slice(0, 5).map(lead => (
                     <div key={lead.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -348,7 +392,7 @@ export function LeadsPage() {
                           <p className="font-medium">{lead.name}</p>
                           <p className="text-sm text-gray-600">{lead.company || lead.location}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <Badge className={statusColors[lead.status]} size="sm">
+                            <Badge className={statusColors[lead.status]}>
                               {lead.status}
                             </Badge>
                             <span className={`text-sm font-medium ${getScoreColor(lead.score)}`}>
@@ -535,7 +579,7 @@ export function LeadsPage() {
                             <span className="text-sm text-gray-600">Interests:</span>
                             <div className="flex gap-1">
                               {lead.interests.map(interest => (
-                                <Badge key={interest} variant="outline" size="sm">
+                                <Badge key={interest} variant="outline">
                                   {interest}
                                 </Badge>
                               ))}
@@ -559,8 +603,16 @@ export function LeadsPage() {
                       <Button variant="outline" size="sm">
                         <Phone className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => handleEditLead(lead)}>
                         <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleDeleteLead(lead.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -575,7 +627,7 @@ export function LeadsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Object.entries(leadMetrics.leadsBySource).map(([source, count]) => {
               const percentage = (count / leadMetrics.totalLeads) * 100;
-              const sourceLeads = mockLeads.filter(lead => lead.source === source);
+              const sourceLeads = leads.filter(lead => lead.source === source);
               const avgValue = sourceLeads.reduce((sum, lead) => sum + lead.estimatedValue, 0) / count;
               const conversionRate = sourceLeads.filter(lead => lead.status === 'Converted').length / count * 100;
               
@@ -620,8 +672,8 @@ export function LeadsPage() {
               <CardContent>
                 <div className="space-y-4">
                   {['New', 'Contacted', 'Qualified', 'Interested', 'Converted'].map((status, index) => {
-                    const count = mockLeads.filter(lead => lead.status === status).length;
-                    const percentage = mockLeads.length > 0 ? (count / mockLeads.length) * 100 : 0;
+                                  const count = leads.filter(lead => lead.status === status).length;
+              const percentage = leads.length > 0 ? (count / leads.length) * 100 : 0;
                     
                     return (
                       <div key={status} className="space-y-2">
@@ -866,7 +918,7 @@ export function LeadsPage() {
                   <Label>Interests</Label>
                   <div className="flex gap-1 mt-1">
                     {selectedLead.interests.map(interest => (
-                      <Badge key={interest} variant="outline" size="sm">
+                      <Badge key={interest} variant="outline">
                         {interest}
                       </Badge>
                     ))}

@@ -39,6 +39,7 @@ model User {
   customers    Customer[]
   appointments Appointment[]
   payments     Payment[]
+  leads        Lead[]
 }
 
 model Customer {
@@ -124,4 +125,32 @@ model Payment {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   customerId      String?
   customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+}
+
+model Lead {
+  id              String   @id @default(cuid())
+  name            String
+  email           String
+  phone           String?
+  company         String?
+  location        String?
+  source          String   @default("Website") // Website, Referral, Cold Call, Social Media, Advertisement, Trade Show, Google Ads
+  status          String   @default("New") // New, Contacted, Qualified, Interested, Not Interested, Converted, Lost
+  score           Int      @default(0) // 1-100
+  estimatedValue  Float    @default(0)
+  probability     Int      @default(0) // 0-100
+  assignedTo      String?
+  createdDate     String
+  lastContact     String?
+  nextFollowUp    String?
+  notes           String?
+  tags            String   @default("[]") // JSON array as string
+  interests       String   @default("[]") // JSON array as string
+  priority        String   @default("Medium") // High, Medium, Low
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relationships
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 } 
