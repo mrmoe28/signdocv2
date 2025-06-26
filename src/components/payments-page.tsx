@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,47 +31,23 @@ import {
 
 interface Payment {
   id: string;
-  invoiceId: string;
-  invoiceNumber: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
   customerName: string;
   amount: number;
   status: 'Pending' | 'Paid' | 'Failed' | 'Refunded';
   paymentDate?: string;
   paymentMethod?: string;
   stripePaymentId?: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  customer?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
-
-// Mock data - replace with actual API calls
-const mockPayments: Payment[] = [
-  {
-    id: '1',
-    invoiceId: 'inv_1',
-    invoiceNumber: 'INV-2024-001',
-    customerName: 'ABC Company',
-    amount: 2500.00,
-    status: 'Paid',
-    paymentDate: '2024-01-15',
-    paymentMethod: 'card',
-    stripePaymentId: 'pi_123456789'
-  },
-  {
-    id: '2',
-    invoiceId: 'inv_2',
-    invoiceNumber: 'INV-2024-002',
-    customerName: 'XYZ Corp',
-    amount: 1200.00,
-    status: 'Pending',
-  },
-  {
-    id: '3',
-    invoiceId: 'inv_3',
-    invoiceNumber: 'INV-2024-003',
-    customerName: 'Tech Solutions',
-    amount: 750.00,
-    status: 'Failed',
-    paymentDate: '2024-01-10'
-  }
-];
 
 function PaymentStatusBadge({ status }: { status: Payment['status'] }) {
   const variants = {
@@ -93,8 +69,8 @@ function PaymentStatusBadge({ status }: { status: Payment['status'] }) {
 
 export function PaymentsPage() {
   const { addToast } = useToast();
-  const [payments, setPayments] = useState<Payment[]>(mockPayments);
-  const [loading, setLoading] = useState(false);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddPaymentForm, setShowAddPaymentForm] = useState(false);
   const [newPayment, setNewPayment] = useState({
     invoiceNumber: '',
@@ -106,15 +82,47 @@ export function PaymentsPage() {
     description: ''
   });
 
+  // Fetch payments from API
+  const fetchPayments = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/payments');
+      if (response.ok) {
+        const data = await response.json();
+        setPayments(data.payments || []);
+      } else {
+        console.error('Failed to fetch payments');
+        addToast({
+          type: 'error',
+          title: 'Error',
+          description: 'Failed to fetch payments'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      addToast({
+        type: 'error',
+        title: 'Error',
+        description: 'Failed to fetch payments'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
   const handleProcessPayment = async (payment: Payment) => {
     if (payment.status !== 'Pending') return;
     
     setLoading(true);
     try {
       const result = await createStripeCheckoutSession(
-        payment.invoiceId,
+        payment.invoiceId || payment.id,
         payment.amount,
-        `Payment for ${payment.invoiceNumber} - ${payment.customerName}`
+        `Payment for ${payment.invoiceNumber || 'Payment'} - ${payment.customerName}`
       );
 
       if ('sessionUrl' in result) {
@@ -139,18 +147,40 @@ export function PaymentsPage() {
     }
   };
 
-  const handleDeletePayment = (paymentId: string) => {
+  const handleDeletePayment = async (paymentId: string) => {
     if (confirm('Are you sure you want to delete this payment entry? This action cannot be undone.')) {
-      setPayments(payments.filter(payment => payment.id !== paymentId));
-      addToast({
-        type: 'success',
-        title: 'Payment Deleted',
-        description: 'The payment entry has been successfully removed.'
-      });
+      try {
+        const response = await fetch(`/api/payments/${paymentId}`, {
+          method: 'DELETE'
+        });
+
+        if (response.ok) {
+          setPayments(payments.filter(payment => payment.id !== paymentId));
+          addToast({
+            type: 'success',
+            title: 'Payment Deleted',
+            description: 'The payment entry has been successfully removed.'
+          });
+        } else {
+          const error = await response.json();
+          addToast({
+            type: 'error',
+            title: 'Delete Failed',
+            description: error.error || 'Failed to delete payment'
+          });
+        }
+      } catch (error) {
+        console.error('Error deleting payment:', error);
+        addToast({
+          type: 'error',
+          title: 'Delete Failed',
+          description: 'Failed to delete payment'
+        });
+      }
     }
   };
 
-  const handleAddPayment = () => {
+  const handleAddPayment = async () => {
     // Validation
     if (!newPayment.customerName || !newPayment.amount || !newPayment.invoiceNumber) {
       addToast({
@@ -171,45 +201,84 @@ export function PaymentsPage() {
       return;
     }
 
-    // Create new payment entry
-    const payment: Payment = {
-      id: Math.random().toString(36).substring(2, 9),
-      invoiceId: newPayment.invoiceNumber,
-      invoiceNumber: newPayment.invoiceNumber,
-      customerName: newPayment.customerName,
-      amount: amount,
-      status: newPayment.status,
-      paymentDate: newPayment.paymentDate,
-      paymentMethod: newPayment.paymentMethod
-    };
+    try {
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          invoiceNumber: newPayment.invoiceNumber,
+          customerName: newPayment.customerName,
+          amount: amount,
+          status: newPayment.status,
+          paymentDate: newPayment.paymentDate,
+          paymentMethod: newPayment.paymentMethod,
+          description: newPayment.description
+        })
+      });
 
-    setPayments(prev => [payment, ...prev]);
-    
-    addToast({
-      type: 'success',
-      title: 'Payment Added',
-      description: 'Manual payment entry has been successfully added.'
-    });
+      if (response.ok) {
+        const data = await response.json();
+        setPayments(prev => [data.payment, ...prev]);
+        
+        addToast({
+          type: 'success',
+          title: 'Payment Added',
+          description: 'Manual payment entry has been successfully added.'
+        });
 
-    // Reset form and close modal
-    setNewPayment({
-      invoiceNumber: '',
-      customerName: '',
-      amount: '',
-      status: 'Paid',
-      paymentMethod: 'cash',
-      paymentDate: new Date().toISOString().split('T')[0],
-      description: ''
-    });
-    setShowAddPaymentForm(false);
+        // Reset form and close modal
+        setNewPayment({
+          invoiceNumber: '',
+          customerName: '',
+          amount: '',
+          status: 'Paid',
+          paymentMethod: 'cash',
+          paymentDate: new Date().toISOString().split('T')[0],
+          description: ''
+        });
+        setShowAddPaymentForm(false);
+      } else {
+        const error = await response.json();
+        addToast({
+          type: 'error',
+          title: 'Failed to Add Payment',
+          description: error.error || 'Failed to add payment'
+        });
+      }
+    } catch (error) {
+      console.error('Error adding payment:', error);
+      addToast({
+        type: 'error',
+        title: 'Failed to Add Payment',
+        description: 'Failed to add payment'
+      });
+    }
   };
 
   const stats = {
     totalPaid: payments.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0),
     totalPending: payments.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount, 0),
     totalPayments: payments.length,
-    successRate: Math.round((payments.filter(p => p.status === 'Paid').length / payments.length) * 100)
+    successRate: payments.length > 0 ? Math.round((payments.filter(p => p.status === 'Paid').length / payments.length) * 100) : 0
   };
+
+  if (loading && payments.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Payments</h1>
+            <p className="text-muted-foreground">Track and process invoice payments via Stripe</p>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <p>Loading payments...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -307,7 +376,7 @@ export function PaymentsPage() {
               {payments.map((payment) => (
                 <TableRow key={payment.id}>
                   <TableCell className="font-medium">
-                    {payment.invoiceNumber}
+                    {payment.invoiceNumber || 'N/A'}
                   </TableCell>
                   <TableCell>{payment.customerName}</TableCell>
                   <TableCell className="font-semibold">
@@ -360,10 +429,11 @@ export function PaymentsPage() {
             </TableBody>
           </Table>
           
-          {payments.length === 0 && (
+          {payments.length === 0 && !loading && (
             <div className="text-center py-8 text-muted-foreground">
               <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No payments found</p>
+              <p className="text-sm">Add your first payment to get started</p>
             </div>
           )}
         </CardContent>

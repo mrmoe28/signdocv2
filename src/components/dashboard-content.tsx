@@ -15,7 +15,13 @@ import {
   RotateCcw,
   Minimize2,
   Maximize2,
-  Eye
+  Eye,
+  Users,
+  Target,
+  BarChart3,
+  Clock,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 // Dynamically import react-grid-layout to avoid SSR issues
@@ -25,28 +31,48 @@ interface KPICardProps {
   title: string;
   value: string;
   subtitle?: string;
-  color: 'green' | 'teal' | 'red' | 'orange';
+  color: 'green' | 'teal' | 'red' | 'orange' | 'blue' | 'purple';
   icon?: React.ReactNode;
+  trend?: {
+    value: string;
+    direction: 'up' | 'down';
+  };
 }
 
-function KPICard({ title, value, subtitle, color, icon }: KPICardProps) {
+function KPICard({ title, value, subtitle, color, icon, trend }: KPICardProps) {
   const colorClasses = {
-    green: 'bg-green-400 text-white',
-    teal: 'bg-teal-400 text-white',
-    red: 'bg-red-400 text-white',
-    orange: 'bg-orange-400 text-white'
+    green: 'bg-gradient-to-br from-green-500 to-green-600 text-white',
+    teal: 'bg-gradient-to-br from-teal-500 to-teal-600 text-white',
+    red: 'bg-gradient-to-br from-red-500 to-red-600 text-white',
+    orange: 'bg-gradient-to-br from-orange-500 to-orange-600 text-white',
+    blue: 'bg-gradient-to-br from-blue-500 to-blue-600 text-white',
+    purple: 'bg-gradient-to-br from-purple-500 to-purple-600 text-white'
   };
 
   return (
-    <Card className={`${colorClasses[color]} border-0 h-full`}>
-      <CardContent className="p-4 md:p-6 h-full flex items-center">
-        <div className="flex items-center justify-between w-full">
+    <Card className={`${colorClasses[color]} border-0 h-full shadow-lg hover:shadow-xl transition-shadow duration-300`}>
+      <CardContent className="p-6 h-full flex flex-col justify-between">
+        <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <div className="text-xl md:text-2xl font-bold mb-1">{value}</div>
-            <div className="text-xs md:text-sm opacity-90 truncate">{title}</div>
+            <div className="text-3xl font-bold mb-2">{value}</div>
+            <div className="text-sm opacity-90 font-medium">{title}</div>
             {subtitle && <div className="text-xs opacity-80 mt-1">{subtitle}</div>}
+            {trend && (
+              <div className="flex items-center mt-2 text-xs opacity-90">
+                {trend.direction === 'up' ? (
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                ) : (
+                  <TrendingUp className="h-3 w-3 mr-1 rotate-180" />
+                )}
+                <span>{trend.value} from last month</span>
+              </div>
+            )}
           </div>
-          {icon && <div className="opacity-80 ml-2 flex-shrink-0">{icon}</div>}
+          {icon && (
+            <div className="opacity-80 ml-4 flex-shrink-0 bg-white bg-opacity-20 rounded-lg p-3">
+              {icon}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -57,15 +83,33 @@ interface ReportCardProps {
   title: string;
   value: string;
   count?: string;
+  trend?: {
+    value: string;
+    direction: 'up' | 'down';
+  };
+  icon?: React.ReactNode;
 }
 
-function ReportCard({ title, value, count }: ReportCardProps) {
+function ReportCard({ title, value, count, trend, icon }: ReportCardProps) {
   return (
-    <div className="bg-white p-4 rounded border border-gray-200">
-      <div className="text-sm text-gray-600 mb-1">{title}</div>
-      <div className="text-xl font-bold text-gray-900">
+    <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm font-medium text-gray-600">{title}</div>
+        {icon && <div className="text-gray-400">{icon}</div>}
+      </div>
+      <div className="text-2xl font-bold text-gray-900 mb-1">
         {value} {count && <span className="text-sm font-normal text-gray-500">({count})</span>}
       </div>
+      {trend && (
+        <div className={`flex items-center text-xs ${trend.direction === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+          {trend.direction === 'up' ? (
+            <TrendingUp className="h-3 w-3 mr-1" />
+          ) : (
+            <TrendingUp className="h-3 w-3 mr-1 rotate-180" />
+          )}
+          <span>{trend.value} from last period</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -108,25 +152,24 @@ function DashboardWidget({
 }
 
 const defaultLayouts = [
-  { i: 'kpi-1', x: 0, y: 0, w: 3, h: 2, minW: 2, minH: 2 },
-  { i: 'kpi-2', x: 3, y: 0, w: 3, h: 2, minW: 2, minH: 2 },
-  { i: 'kpi-3', x: 6, y: 0, w: 3, h: 2, minW: 2, minH: 2 },
-  { i: 'kpi-4', x: 9, y: 0, w: 3, h: 2, minW: 2, minH: 2 },
-  { i: 'today-reports', x: 0, y: 2, w: 4, h: 8, minW: 3, minH: 6 },
-  { i: 'profit-loss', x: 4, y: 2, w: 4, h: 8, minW: 3, minH: 6 },
-  { i: 'job-forecast', x: 8, y: 2, w: 4, h: 8, minW: 3, minH: 6 },
-  { i: 'total-sales', x: 0, y: 10, w: 4, h: 8, minW: 3, minH: 6 },
-  { i: 'invoice-aging', x: 4, y: 10, w: 4, h: 8, minW: 3, minH: 6 },
-  { i: 'estimate-aging', x: 8, y: 10, w: 4, h: 8, minW: 3, minH: 6 },
-  { i: 'business-performance', x: 0, y: 18, w: 8, h: 8, minW: 6, minH: 6 },
-  { i: 'jobs-won', x: 8, y: 18, w: 2, h: 4, minW: 2, minH: 4 },
-  { i: 'expenses', x: 10, y: 18, w: 2, h: 4, minW: 2, minH: 4 },
+  { i: 'kpi-1', x: 0, y: 0, w: 3, h: 3, minW: 2, minH: 3 },
+  { i: 'kpi-2', x: 3, y: 0, w: 3, h: 3, minW: 2, minH: 3 },
+  { i: 'kpi-3', x: 6, y: 0, w: 3, h: 3, minW: 2, minH: 3 },
+  { i: 'kpi-4', x: 9, y: 0, w: 3, h: 3, minW: 2, minH: 3 },
+  { i: 'today-reports', x: 0, y: 3, w: 4, h: 10, minW: 3, minH: 8 },
+  { i: 'profit-loss', x: 4, y: 3, w: 4, h: 10, minW: 3, minH: 8 },
+  { i: 'job-forecast', x: 8, y: 3, w: 4, h: 10, minW: 3, minH: 8 },
+  { i: 'business-performance', x: 0, y: 13, w: 6, h: 10, minW: 4, minH: 8 },
+  { i: 'recent-activity', x: 6, y: 13, w: 6, h: 10, minW: 4, minH: 8 },
+  { i: 'total-sales', x: 0, y: 23, w: 4, h: 8, minW: 3, minH: 6 },
+  { i: 'invoice-aging', x: 4, y: 23, w: 4, h: 8, minW: 3, minH: 6 },
+  { i: 'estimate-aging', x: 8, y: 23, w: 4, h: 8, minW: 3, minH: 6 },
 ];
 
 export function DashboardContent() {
   const [dateRange, setDateRange] = useState('This Year');
   const [isCustomizeMode, setIsCustomizeMode] = useState(false);
-  const [isDashboardEnabled, setIsDashboardEnabled] = useState(true);
+  const [isDashboardEnabled] = useState(true);
   const [layouts, setLayouts] = useState(defaultLayouts);
   const [isDraggable, setIsDraggable] = useState(false);
   const [minimizedCards, setMinimizedCards] = useState<Set<string>>(new Set());
@@ -138,10 +181,7 @@ export function DashboardContent() {
     console.log('Customize mode:', newCustomizeMode);
   };
 
-  const handleToggleEnabled = () => {
-    setIsDashboardEnabled(!isDashboardEnabled);
-    console.log('Dashboard enabled:', !isDashboardEnabled);
-  };
+
 
   const handleLayoutChange = (layout: Array<{i: string; x: number; y: number; w: number; h: number; minW?: number; minH?: number}>) => {
     setLayouts(layout.map(item => ({
@@ -178,15 +218,15 @@ export function DashboardContent() {
       layout={layouts}
       cols={12}
       rowHeight={30}
-      width={1200}
-      margin={[16, 16]}
+      width={1400}
+      margin={[20, 20]}
       containerPadding={[0, 0]}
       isDraggable={isDraggable}
       isResizable={isCustomizeMode}
       onLayoutChange={handleLayoutChange}
       useCSSTransforms={true}
     >
-      {/* KPI Cards */}
+      {/* Enhanced KPI Cards */}
       <div key="kpi-1" style={{ display: minimizedCards.has('kpi-1') ? 'none' : 'block' }}>
         <DashboardWidget 
           widgetId="kpi-1"
@@ -195,10 +235,11 @@ export function DashboardContent() {
           isMinimized={minimizedCards.has('kpi-1')}
         >
           <KPICard
-            title="Earned This Month"
+            title="Monthly Revenue"
             value="$650.00"
             color="green"
             icon={<DollarSign className="h-8 w-8" />}
+            trend={{ value: "+12.5%", direction: "up" }}
           />
         </DashboardWidget>
       </div>
@@ -211,11 +252,12 @@ export function DashboardContent() {
           isMinimized={minimizedCards.has('kpi-2')}
         >
           <KPICard
-            title="Jobs Completed Month To Date"
+            title="Jobs Completed"
             value="0/0"
-            subtitle="(Avg. $0.00)"
-            color="teal"
-            icon={<Calendar className="h-8 w-8" />}
+            subtitle="This Month"
+            color="blue"
+            icon={<CheckCircle className="h-8 w-8" />}
+            trend={{ value: "0%", direction: "up" }}
           />
         </DashboardWidget>
       </div>
@@ -228,11 +270,11 @@ export function DashboardContent() {
           isMinimized={minimizedCards.has('kpi-3')}
         >
           <KPICard
-            title="Total Invoice Due"
+            title="Outstanding Invoices"
             value="$0.00"
-            subtitle="(0)"
+            subtitle="0 invoices"
             color="red"
-            icon={<FileText className="h-8 w-8" />}
+            icon={<AlertTriangle className="h-8 w-8" />}
           />
         </DashboardWidget>
       </div>
@@ -245,16 +287,17 @@ export function DashboardContent() {
           isMinimized={minimizedCards.has('kpi-4')}
         >
           <KPICard
-            title="Total Estimate Pending"
+            title="Pipeline Value"
             value="$11,021.00"
-            subtitle="(3)"
-            color="green"
-            icon={<TrendingUp className="h-8 w-8" />}
+            subtitle="3 estimates"
+            color="purple"
+            icon={<Target className="h-8 w-8" />}
+            trend={{ value: "+8.3%", direction: "up" }}
           />
         </DashboardWidget>
       </div>
 
-      {/* Dashboard Cards */}
+      {/* Enhanced Dashboard Cards */}
       <div key="today-reports" style={{ display: minimizedCards.has('today-reports') ? 'none' : 'block' }}>
         <DashboardWidget 
           widgetId="today-reports"
@@ -262,17 +305,44 @@ export function DashboardContent() {
           onMinimize={handleMinimize}
           isMinimized={minimizedCards.has('today-reports')}
         >
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Today&apos;s Reports</CardTitle>
+          <Card className="h-full shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Clock className="h-5 w-5 text-blue-600" />
+                Today&apos;s Performance
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 overflow-y-auto">
-              <ReportCard title="Today's Jobs" value="$0.00" count="0" />
-              <ReportCard title="Earned Today" value="$650.00" />
-              <ReportCard title="Tomorrow Job Earnings" value="$0.00" count="0" />
-              <ReportCard title="Jobs Booked Today" value="$0.00" count="0" />
-              <ReportCard title="Today's Estimates" value="$0.00" count="0" />
-              <ReportCard title="Today's Leads" value="0" />
+              <ReportCard 
+                title="Today's Jobs" 
+                value="$0.00" 
+                count="0" 
+                icon={<Calendar className="h-4 w-4" />}
+                trend={{ value: "0%", direction: "up" }}
+              />
+              <ReportCard 
+                title="Revenue Earned" 
+                value="$650.00" 
+                icon={<DollarSign className="h-4 w-4" />}
+                trend={{ value: "+15%", direction: "up" }}
+              />
+              <ReportCard 
+                title="Tomorrow's Schedule" 
+                value="$0.00" 
+                count="0 jobs" 
+                icon={<Calendar className="h-4 w-4" />}
+              />
+              <ReportCard 
+                title="New Leads" 
+                value="0" 
+                icon={<Users className="h-4 w-4" />}
+              />
+              <ReportCard 
+                title="Estimates Created" 
+                value="$0.00" 
+                count="0" 
+                icon={<FileText className="h-4 w-4" />}
+              />
             </CardContent>
           </Card>
         </DashboardWidget>
@@ -285,27 +355,33 @@ export function DashboardContent() {
           onMinimize={handleMinimize}
           isMinimized={minimizedCards.has('profit-loss')}
         >
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Profit and Loss</CardTitle>
+          <Card className="h-full shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-green-600" />
+                Profit & Loss Analysis
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col h-full">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Revenue:</span>
-                  <span className="font-semibold">$13355.63</span>
+              <div className="space-y-4 text-base mb-6">
+                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                  <span className="font-medium">Total Revenue:</span>
+                  <span className="font-bold text-green-600 text-lg">$13,355.63</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Expenses:</span>
-                  <span className="font-semibold">$900.00</span>
+                <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                  <span className="font-medium">Total Expenses:</span>
+                  <span className="font-bold text-red-600 text-lg">$900.00</span>
                 </div>
-                <div className="flex justify-between border-t pt-2">
-                  <span className="font-semibold">Net Profit:</span>
-                  <span className="font-semibold">$12753.63</span>
+                <div className="flex justify-between items-center p-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg">
+                  <span className="font-bold text-lg">Net Profit:</span>
+                  <span className="font-bold text-2xl">$12,753.63</span>
                 </div>
               </div>
-              <div className="mt-4 flex-1 min-h-[100px] bg-gradient-to-r from-green-400 to-teal-400 rounded-lg flex items-center justify-center">
-                <span className="text-white font-semibold">Net Profit</span>
+              <div className="flex-1 min-h-[120px] bg-gradient-to-br from-green-400 via-green-500 to-teal-500 rounded-lg flex items-center justify-center shadow-inner">
+                <div className="text-center text-white">
+                  <div className="text-3xl font-bold mb-2">95.2%</div>
+                  <div className="text-sm opacity-90">Profit Margin</div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -319,19 +395,161 @@ export function DashboardContent() {
           onMinimize={handleMinimize}
           isMinimized={minimizedCards.has('job-forecast')}
         >
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Job Forecast</CardTitle>
-              <p className="text-sm text-gray-600">From today to 4 weeks from now</p>
+          <Card className="h-full shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-purple-600" />
+                4-Week Job Forecast
+              </CardTitle>
+              <p className="text-sm text-gray-600">Upcoming scheduled work</p>
             </CardHeader>
             <CardContent className="flex flex-col h-full">
-              <div className="flex-1 flex items-end justify-end gap-2 min-h-[120px]">
-                <div className="bg-gray-200 h-8 w-16 rounded"></div>
-                <div className="bg-teal-400 h-32 w-16 rounded"></div>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className="text-2xl font-bold text-gray-600">0</div>
+                  <div className="text-sm text-gray-500">Scheduled Jobs</div>
+                </div>
+                <div className="text-center p-4 bg-teal-50 rounded-lg">
+                  <div className="text-2xl font-bold text-teal-600">3</div>
+                  <div className="text-sm text-gray-500">Pending Estimates</div>
+                </div>
               </div>
-              <div className="flex justify-between text-xs text-gray-600 mt-2">
-                <span>Scheduled</span>
-                <span>Unscheduled</span>
+              <div className="flex-1 flex items-end justify-center gap-4 min-h-[140px] p-4 bg-gray-50 rounded-lg">
+                <div className="flex flex-col items-center">
+                  <div className="bg-gray-300 h-12 w-16 rounded mb-2"></div>
+                  <span className="text-xs text-gray-600">Week 1</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="bg-gray-300 h-8 w-16 rounded mb-2"></div>
+                  <span className="text-xs text-gray-600">Week 2</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="bg-teal-400 h-32 w-16 rounded mb-2"></div>
+                  <span className="text-xs text-gray-600">Week 3</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="bg-teal-500 h-24 w-16 rounded mb-2"></div>
+                  <span className="text-xs text-gray-600">Week 4</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </DashboardWidget>
+      </div>
+
+      {/* New Enhanced Business Performance Card */}
+      <div key="business-performance" style={{ display: minimizedCards.has('business-performance') ? 'none' : 'block' }}>
+        <DashboardWidget 
+          widgetId="business-performance"
+          isDraggable={isDraggable}
+          onMinimize={handleMinimize}
+          isMinimized={minimizedCards.has('business-performance')}
+        >
+          <Card className="h-full shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+                Business Performance Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">1</div>
+                  <div className="text-sm text-gray-600">Active Customers</div>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">1</div>
+                  <div className="text-sm text-gray-600">Total Invoices</div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Customer Satisfaction</span>
+                  <span className="text-sm font-bold text-green-600">98%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '98%' }}></div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Project Completion Rate</span>
+                  <span className="text-sm font-bold text-blue-600">100%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Revenue Growth</span>
+                  <span className="text-sm font-bold text-purple-600">+15.2%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-purple-500 h-2 rounded-full" style={{ width: '75%' }}></div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </DashboardWidget>
+      </div>
+
+      {/* New Recent Activity Card */}
+      <div key="recent-activity" style={{ display: minimizedCards.has('recent-activity') ? 'none' : 'block' }}>
+        <DashboardWidget 
+          widgetId="recent-activity"
+          isDraggable={isDraggable}
+          onMinimize={handleMinimize}
+          isMinimized={minimizedCards.has('recent-activity')}
+        >
+          <Card className="h-full shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Clock className="h-5 w-5 text-orange-600" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 overflow-y-auto">
+              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Invoice Created</div>
+                  <div className="text-xs text-gray-600">INV-842129 for $450.00</div>
+                </div>
+                <div className="text-xs text-gray-500">2h ago</div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <Users className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium">New Customer Added</div>
+                  <div className="text-xs text-gray-600">Norma Cook</div>
+                </div>
+                <div className="text-xs text-gray-500">3h ago</div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Estimate Sent</div>
+                  <div className="text-xs text-gray-600">Solar installation quote</div>
+                </div>
+                <div className="text-xs text-gray-500">1d ago</div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
+                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                  <Calendar className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Appointment Scheduled</div>
+                  <div className="text-xs text-gray-600">Site inspection next week</div>
+                </div>
+                <div className="text-xs text-gray-500">2d ago</div>
               </div>
             </CardContent>
           </Card>
@@ -345,28 +563,20 @@ export function DashboardContent() {
           onMinimize={handleMinimize}
           isMinimized={minimizedCards.has('total-sales')}
         >
-          <Card className="h-full">
+          <Card className="h-full shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg">Total Sales</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col h-full">
-              <div className="flex-1 flex items-end justify-center gap-4 min-h-[120px]">
-                <div className="text-center">
-                  <div className="bg-gray-200 h-8 w-16 rounded mb-2"></div>
-                  <span className="text-xs text-gray-600">Due</span>
-                </div>
-                <div className="text-center">
-                  <div className="bg-gray-200 h-12 w-16 rounded mb-2"></div>
-                  <span className="text-xs text-gray-600">Overdue</span>
-                </div>
-                <div className="text-center">
-                  <div className="bg-teal-400 h-32 w-16 rounded mb-2"></div>
-                  <span className="text-xs text-gray-600">Paid</span>
-                </div>
-                <div className="text-center">
-                  <div className="bg-blue-400 h-24 w-16 rounded mb-2"></div>
-                  <span className="text-xs text-gray-600">Invoiced</span>
-                </div>
+              <div className="flex-1 flex items-end justify-center gap-2 min-h-[100px] p-4 bg-gray-50 rounded-lg">
+                <div className="bg-teal-400 h-24 w-12 rounded"></div>
+                <div className="bg-blue-500 h-16 w-12 rounded"></div>
+                <div className="bg-green-500 h-20 w-12 rounded"></div>
+                <div className="bg-purple-500 h-12 w-12 rounded"></div>
+              </div>
+              <div className="text-center mt-4">
+                <div className="text-2xl font-bold text-gray-900">$13,355.63</div>
+                <div className="text-sm text-gray-600">Total Revenue</div>
               </div>
             </CardContent>
           </Card>
@@ -380,32 +590,33 @@ export function DashboardContent() {
           onMinimize={handleMinimize}
           isMinimized={minimizedCards.has('invoice-aging')}
         >
-          <Card className="h-full">
+          <Card className="h-full shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg">Invoice Aging</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col h-full">
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
-                  <span>Current</span>
-                  <div className="flex-1 border-b border-dashed"></div>
-                  <span>1-15 Days</span>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span>Current (1-15 Days)</span>
+                  <span className="font-medium">$0.00</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-orange-400 rounded-full"></div>
+                <div className="flex justify-between text-sm">
                   <span>16-30 Days</span>
-                  <div className="flex-1 border-b border-dashed"></div>
-                  <span>31-45 Days</span>
+                  <span className="font-medium">$0.00</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-teal-400 rounded-full"></div>
+                <div className="flex justify-between text-sm">
+                  <span>31-45 Days</span>
+                  <span className="font-medium">$0.00</span>
+                </div>
+                <div className="flex justify-between text-sm">
                   <span>46+ Days</span>
-                  <div className="flex-1 border-b border-dashed"></div>
-                  <span>&gt;45 Days</span>
+                  <span className="font-medium text-red-600">$0.00</span>
                 </div>
               </div>
-              <div className="flex-1 bg-gray-100 rounded mt-4 min-h-[60px]"></div>
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg text-center">
+                <div className="text-lg font-bold text-green-600">All Current</div>
+                <div className="text-sm text-gray-600">No overdue invoices</div>
+              </div>
             </CardContent>
           </Card>
         </DashboardWidget>
@@ -418,228 +629,110 @@ export function DashboardContent() {
           onMinimize={handleMinimize}
           isMinimized={minimizedCards.has('estimate-aging')}
         >
-          <Card className="h-full">
+          <Card className="h-full shadow-lg">
             <CardHeader>
               <CardTitle className="text-lg">Estimate Aging</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col h-full">
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
-                  <span>Current</span>
-                  <div className="flex-1 border-b border-dashed"></div>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
                   <span>1-3 Days</span>
+                  <span className="font-medium">$0.00</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-orange-400 rounded-full"></div>
+                <div className="flex justify-between text-sm">
                   <span>4-7 Days</span>
-                  <div className="flex-1 border-b border-dashed"></div>
+                  <span className="font-medium">$0.00</span>
+                </div>
+                <div className="flex justify-between text-sm">
                   <span>8-15 Days</span>
+                  <span className="font-medium">$0.00</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-teal-400 rounded-full"></div>
+                <div className="flex justify-between text-sm">
                   <span>16+ Days</span>
-                  <div className="flex-1 border-b border-dashed"></div>
-                  <span>30+ Days</span>
+                  <span className="font-medium">$11,021.00</span>
                 </div>
               </div>
-              <div className="flex-1 flex items-end justify-end min-h-[60px]">
-                <div className="bg-teal-400 h-full w-full rounded"></div>
-              </div>
-            </CardContent>
-          </Card>
-        </DashboardWidget>
-      </div>
-
-      <div key="business-performance" style={{ display: minimizedCards.has('business-performance') ? 'none' : 'block' }}>
-        <DashboardWidget 
-          widgetId="business-performance"
-          isDraggable={isDraggable}
-          onMinimize={handleMinimize}
-          isMinimized={minimizedCards.has('business-performance')}
-        >
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Business Performance</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col h-full">
-              <div className="flex-1 relative min-h-[120px]">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-green-100 rounded opacity-50"></div>
-                <div className="relative h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-sm text-gray-600 mb-2">Revenue • Expenses • Net Profit</div>
-                    <div className="h-24 bg-gradient-to-r from-teal-400 to-green-400 rounded-lg"></div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </DashboardWidget>
-      </div>
-
-      <div key="jobs-won" style={{ display: minimizedCards.has('jobs-won') ? 'none' : 'block' }}>
-        <DashboardWidget 
-          widgetId="jobs-won"
-          isDraggable={isDraggable}
-          onMinimize={handleMinimize}
-          isMinimized={minimizedCards.has('jobs-won')}
-        >
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Jobs Won</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col h-full">
-              <div className="relative flex-1 flex items-center justify-center min-h-[80px]">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-r from-teal-400 to-green-400 flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">$4845</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </DashboardWidget>
-      </div>
-
-      <div key="expenses" style={{ display: minimizedCards.has('expenses') ? 'none' : 'block' }}>
-        <DashboardWidget 
-          widgetId="expenses"
-          isDraggable={isDraggable}
-          onMinimize={handleMinimize}
-          isMinimized={minimizedCards.has('expenses')}
-        >
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-lg">Expenses</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col h-full">
-              <div className="relative flex-1 flex items-center justify-center min-h-[80px]">
-                <div className="w-24 h-24 rounded-full bg-red-400 flex items-center justify-center">
-                  <div className="w-6 h-6 bg-white rounded-full"></div>
-                </div>
+              <div className="mt-4 h-32 bg-gradient-to-t from-teal-500 to-teal-400 rounded-lg flex items-end justify-center pb-4">
+                <span className="text-white font-semibold">$11,021.00</span>
               </div>
             </CardContent>
           </Card>
         </DashboardWidget>
       </div>
     </GridLayout>
-  ), [layouts, isDraggable, isCustomizeMode, minimizedCards, handleMinimize]);
+  ), [layouts, isDraggable, isCustomizeMode, minimizedCards]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white px-4 md:px-6 py-4 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Enhanced Header */}
+      <div className="bg-white shadow-sm border-b px-6 py-4">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900">Dashboard for EKO SOLAR.LLC</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard for EKO SOLAR.LLC</h1>
+            <p className="text-gray-600 mt-1">Comprehensive business overview and analytics</p>
           </div>
-          <Button variant="link" className="text-blue-600 text-sm self-start sm:self-auto">
-            <ExternalLink className="h-4 w-4 mr-1" />
-            News and Updates
-          </Button>
-        </div>
-      </div>
-
-      <div className="p-4 md:p-6">
-        {/* Date Range Selector */}
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-600" />
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="This Year">This Year</SelectItem>
-                  <SelectItem value="This Month">This Month</SelectItem>
-                  <SelectItem value="This Week">This Week</SelectItem>
-                  <SelectItem value="Today">Today</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <span className="text-sm text-gray-600">For 01 Jan 2025 to 31 Dec 2025</span>
-          </div>
-          <div className="flex gap-2 lg:ml-auto">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" className="flex items-center gap-2">
+              <ExternalLink className="h-4 w-4" />
+              News and Updates
+            </Button>
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="This Year">This Year</SelectItem>
+                <SelectItem value="Last Year">Last Year</SelectItem>
+                <SelectItem value="This Month">This Month</SelectItem>
+                <SelectItem value="Last Month">Last Month</SelectItem>
+                <SelectItem value="This Quarter">This Quarter</SelectItem>
+                <SelectItem value="Last Quarter">Last Quarter</SelectItem>
+              </SelectContent>
+            </Select>
             <Button 
-              variant="outline" 
-              size="sm" 
-              className={`text-blue-600 min-h-[44px] ${isCustomizeMode ? 'bg-blue-50 border-blue-300' : ''}`}
               onClick={handleCustomizeClick}
+              variant={isCustomizeMode ? "default" : "outline"}
+              className="flex items-center gap-2"
             >
-              {isCustomizeMode ? 'Done' : 'Customize'}
+              <Move className="h-4 w-4" />
+              {isCustomizeMode ? 'Done Customizing' : 'Customize'}
             </Button>
-            {isCustomizeMode && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="min-h-[44px] text-gray-600"
-                onClick={resetLayout}
-              >
-                <RotateCcw className="h-4 w-4 mr-1" />
-                Reset
-              </Button>
-            )}
-            {minimizedCards.size > 0 && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="min-h-[44px] text-green-600"
-                onClick={showAllCards}
-              >
-                <Eye className="h-4 w-4 mr-1" />
-                Show All ({minimizedCards.size})
-              </Button>
-            )}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className={`min-h-[44px] ${isDashboardEnabled ? 'bg-green-50 text-green-600 border-green-300' : 'bg-gray-50 text-gray-600'}`}
-              onClick={handleToggleEnabled}
-            >
+            <div className={`px-3 py-1 rounded-full text-sm font-medium ${isDashboardEnabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
               {isDashboardEnabled ? 'ON' : 'OFF'}
-            </Button>
+            </div>
           </div>
         </div>
-
-        {/* Customize Mode Instructions */}
+        
         {isCustomizeMode && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 text-blue-800">
-              <Move className="h-4 w-4" />
-              <span className="font-medium">Customize Mode Active</span>
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-blue-800">
+                <Eye className="h-4 w-4" />
+                <span className="font-medium">Customize Mode Active</span>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={showAllCards}>
+                  Show All Cards
+                </Button>
+                <Button size="sm" variant="outline" onClick={resetLayout}>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset Layout
+                </Button>
+              </div>
             </div>
-            <p className="text-sm text-blue-700 mt-1">
-              Use the minimize button (-) to hide cards temporarily, drag the handle to move cards, or resize by dragging the edges. Click "Done" when finished.
+            <p className="text-sm text-blue-700 mt-2">
+              Drag cards to rearrange, resize by dragging corners, or minimize cards using the controls.
             </p>
           </div>
         )}
+      </div>
 
-        {/* Minimized Cards Notice */}
-        {minimizedCards.size > 0 && !isCustomizeMode && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-yellow-800">
-                <Minimize2 className="h-4 w-4" />
-                <span className="font-medium">
-                  {minimizedCards.size} card{minimizedCards.size > 1 ? 's' : ''} minimized
-                </span>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-yellow-700 hover:text-yellow-900"
-                onClick={showAllCards}
-              >
-                Show All
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Resizable Dashboard Grid */}
-        <div className="dashboard-grid">
+      {/* Enhanced Dashboard Grid */}
+      <div className="p-6">
+        <div style={{ minHeight: '800px' }}>
           {gridContent}
         </div>
       </div>
     </div>
   );
-} 
+}

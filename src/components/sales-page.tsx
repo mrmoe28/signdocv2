@@ -139,14 +139,14 @@ export function SalesPage() {
       const customersResponse = await fetch('/api/customers');
       if (customersResponse.ok) {
         const customersData = await customersResponse.json();
-        setCustomers(customersData);
+        setCustomers(customersData.customers || []);
       }
 
       // Fetch invoices
       const invoicesResponse = await fetch('/api/invoices');
       if (invoicesResponse.ok) {
         const invoicesData = await invoicesResponse.json();
-        setInvoices(invoicesData);
+        setInvoices(invoicesData.invoices || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
