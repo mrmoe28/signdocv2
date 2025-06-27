@@ -21,28 +21,34 @@ export interface InvoiceItem {
 
 export interface Invoice {
   id: string;
-  invoiceNumber: string;
-  customerId: string;
-  customer: Customer;
-  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Cancelled';
-  issueDate: string;
-  dueDate: string;
-  items: InvoiceItem[];
-  subtotal: number;
-  taxAmount: number;
-  discountAmount: number;
-  total: number;
+  invoiceId: string;
+  customerName: string;
+  amount: number;
+  description?: string;
+  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Cancelled' | 'Pending';
+  createdAt: string;
+  updatedAt: string;
+  userId?: string;
+  customerId?: string;
+  customer?: Customer;
+  // Legacy fields for backward compatibility
+  invoiceNumber?: string;
+  total?: number;
+  dueDate?: string;
+  items?: InvoiceItem[];
+  subtotal?: number;
+  taxAmount?: number;
+  discountAmount?: number;
   notes?: string;
   terms?: string;
   jobLocation?: string;
   jobName?: string;
   workOrderNumber?: string;
   purchaseOrderNumber?: string;
-  invoiceType: 'Total Due' | 'Partial' | 'Deposit';
+  invoiceType?: 'Total Due' | 'Partial' | 'Deposit';
   adjustment?: number;
   adjustmentDescription?: string;
-  createdAt: string;
-  updatedAt: string;
+  issueDate?: string;
 }
 
 export interface InvoiceFilters {

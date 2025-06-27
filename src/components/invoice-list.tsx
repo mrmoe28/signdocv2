@@ -80,10 +80,14 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
     
     setPaymentLoading(invoice.id);
     try {
+      const amount = invoice.amount || invoice.total || 0;
+      const invoiceNumber = invoice.invoiceId || invoice.invoiceNumber || 'N/A';
+      const customerName = invoice.customer?.name || invoice.customerName || 'Unknown';
+      
       const result = await createStripeCheckoutSession(
         invoice.id,
-        invoice.total,
-        `Payment for ${invoice.invoiceNumber} - ${invoice.customer.name}`
+        amount,
+        `Payment for ${invoiceNumber} - ${customerName}`
       );
 
       if ('sessionUrl' in result) {
@@ -103,16 +107,21 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
     if (invoice.status === 'Paid' || invoice.status === 'Draft') return;
     
     try {
+      const customerName = invoice.customer?.name || invoice.customerName || 'customer';
+      const invoiceNumber = invoice.invoiceId || invoice.invoiceNumber || 'N/A';
+      
       // Simulate sending reminder email
       const success = confirm(
-        `Send payment reminder to ${invoice.customer.name} for invoice ${invoice.invoiceNumber}?`
+        `Send payment reminder to ${customerName} for invoice ${invoiceNumber}?`
       );
       
       if (success) {
         // Here you would typically call an API to send the reminder
         // await fetch(`/api/invoices/${invoice.id}/reminder`, { method: 'POST' });
         
-        alert(`Payment reminder sent to ${invoice.customer.email || invoice.customer.name}`);
+        const customerEmail = invoice.customer?.email || 'customer';
+        const customerName = invoice.customer?.name || invoice.customerName || 'customer';
+        alert(`Payment reminder sent to ${customerEmail || customerName}`);
       }
     } catch (error) {
       console.error('Error sending reminder:', error);
@@ -127,15 +136,20 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
     }
     
     try {
+      const customerName = invoice.customer?.name || invoice.customerName || 'customer';
+      const customerEmail = invoice.customer?.email || `${customerName.toLowerCase().replace(/\s+/g, '.')}@example.com`;
+      const invoiceNumber = invoice.invoiceId || invoice.invoiceNumber || 'N/A';
+      const amount = invoice.amount || invoice.total || 0;
+      
       const response = await fetch(`/api/invoices/${invoice.id}/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          recipientEmail: invoice.customer.email || `${invoice.customer.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-          subject: `Invoice ${invoice.invoiceNumber} from EKO SOLAR`,
-          message: `Dear ${invoice.customer.name},\n\nPlease find attached your invoice ${invoice.invoiceNumber} for ${formatCurrency(invoice.total)}.\n\nThank you for your business!\n\nBest regards,\nEKO SOLAR Team`
+          recipientEmail: customerEmail,
+          subject: `Invoice ${invoiceNumber} from EKO SOLAR`,
+          message: `Dear ${customerName},\n\nPlease find attached your invoice ${invoiceNumber} for ${formatCurrency(amount)}.\n\nThank you for your business!\n\nBest regards,\nEKO SOLAR Team`
         })
       });
 
@@ -330,12 +344,14 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
                   invoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">
-                        {invoice.invoiceNumber}
+                        {invoice.invoiceId || invoice.invoiceNumber}
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{invoice.customer.name}</div>
-                          {invoice.customer.company && (
+                          <div className="font-medium">
+                            {invoice.customer?.name || invoice.customerName}
+                          </div>
+                          {invoice.customer?.company && (
                             <div className="text-sm text-muted-foreground">
                               {invoice.customer.company}
                             </div>
@@ -343,9 +359,9 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">
-                        {formatCurrency(invoice.total)}
+                        {formatCurrency(invoice.amount || invoice.total || 0)}
                       </TableCell>
-                      <TableCell>{formatDate(invoice.dueDate)}</TableCell>
+                      <TableCell>{formatDate(invoice.dueDate || invoice.createdAt)}</TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(invoice.status)}>
                           {invoice.status}

@@ -31,7 +31,20 @@ export async function POST(
   try {
     const user = await getAuthenticatedUser();
     const { id } = await params;
-    const { recipientEmail, subject, message } = await req.json();
+    
+    // Handle empty request body gracefully
+    let recipientEmail, subject, message;
+    try {
+      const body = await req.json();
+      recipientEmail = body.recipientEmail;
+      subject = body.subject;
+      message = body.message;
+    } catch {
+      // If JSON parsing fails, use default values
+      recipientEmail = null;
+      subject = null;
+      message = null;
+    }
 
     // Get invoice from database
     const invoice = await prisma.invoice.findFirst({
