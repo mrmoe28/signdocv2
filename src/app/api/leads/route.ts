@@ -37,7 +37,7 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(leads);
+    return NextResponse.json({ leads });
   } catch (error) {
     console.error('Error fetching leads:', error);
     return NextResponse.json(

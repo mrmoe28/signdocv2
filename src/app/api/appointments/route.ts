@@ -3,6 +3,26 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  try {
+    // For now, we'll use the admin user as fallback
+    // In a real app, you'd get this from the session/token
+    const adminUser = await prisma.user.findFirst({
+      where: { email: 'admin@ekosolar.com' }
+    });
+    
+    if (!adminUser) {
+      throw new Error('Admin user not found');
+    }
+    
+    return adminUser;
+  } catch (error) {
+    console.error('Error getting authenticated user:', error);
+    throw error;
+  }
+}
+
 // GET /api/appointments - Get all appointments
 export async function GET() {
   try {
@@ -25,26 +45,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch appointments' }, { status: 500 });
   } finally {
     await prisma.$disconnect();
-  }
-}
-
-// Helper function to get authenticated user
-async function getAuthenticatedUser() {
-  try {
-    // For now, we'll use the admin user as fallback
-    // In a real app, you'd get this from the session/token
-    const adminUser = await prisma.user.findFirst({
-      where: { email: 'admin@ekosolar.com' }
-    });
-    
-    if (!adminUser) {
-      throw new Error('Admin user not found');
-    }
-    
-    return adminUser;
-  } catch (error) {
-    console.error('Error getting authenticated user:', error);
-    throw error;
   }
 }
 
