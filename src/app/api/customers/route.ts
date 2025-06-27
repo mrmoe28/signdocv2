@@ -72,6 +72,9 @@ export async function POST(req: NextRequest) {
   try {
     const userId = await getAuthenticatedUser(req);
 
+    const requestBody = await req.json();
+    console.log('📋 Customer creation request:', requestBody);
+
     const {
       name,
       email,
@@ -82,10 +85,11 @@ export async function POST(req: NextRequest) {
       customerType,
       notifyByEmail,
       notifyBySmsText
-    } = await req.json();
+    } = requestBody;
 
     // Validation
     if (!name || !email) {
+      console.log('❌ Validation failed: Missing name or email');
       return NextResponse.json({ 
         error: 'Name and email are required' 
       }, { status: 400 });
@@ -94,29 +98,39 @@ export async function POST(req: NextRequest) {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      console.log('❌ Validation failed: Invalid email format');
       return NextResponse.json({ 
         error: 'Please provide a valid email address' 
       }, { status: 400 });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+    console.log('🔍 Checking for existing customer with email:', normalizedEmail);
+
     // Check if customer with this email already exists for this user
     const existingCustomer = await prisma.customer.findFirst({
       where: {
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         userId: userId
       }
     });
 
     if (existingCustomer) {
+      console.log('❌ Customer already exists:', existingCustomer.id, existingCustomer.name);
       return NextResponse.json({ 
-        error: 'A customer with this email already exists' 
+        error: `A customer with email "${normalizedEmail}" already exists: ${existingCustomer.name}`,
+        existingCustomer: {
+          id: existingCustomer.id,
+          name: existingCustomer.name,
+          email: existingCustomer.email
+        }
       }, { status: 409 });
     }
 
     // Prepare customer data with proper defaults
     const customerData = {
       name: name.trim(),
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       phone: phone ? phone.trim() : null,
       company: company ? company.trim() : null,
       address: address ? address.trim() : null,
@@ -127,10 +141,14 @@ export async function POST(req: NextRequest) {
       userId: userId
     };
 
+    console.log('💾 Creating customer with data:', customerData);
+
     // Create the customer
     const customer = await prisma.customer.create({
       data: customerData
     });
+
+    console.log('✅ Customer created successfully:', customer.id, customer.name);
 
     return NextResponse.json({ 
       success: true, 
@@ -139,7 +157,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Create customer error:', error);
+    console.error('❌ Create customer error:', error);
     
     // Provide more specific error messages
     if (error instanceof Error) {

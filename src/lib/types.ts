@@ -6,6 +6,12 @@ export interface Customer {
   address?: string;
   company?: string;
   contactPerson?: string;
+  customerType: string;
+  notifyByEmail: boolean;
+  notifyBySmsText: boolean;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
 }
 
 export interface InvoiceItem {

@@ -154,7 +154,21 @@ export function CustomersPage() {
     setEditingCustomer(null);
   };
 
-  const handleSaveCustomer = async (customerData: any) => {
+  const handleSaveCustomer = async (customerData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    mobile: string;
+    phone: string;
+    customerType: string;
+    notifyByEmail: boolean;
+    notifyBySmsText: boolean;
+    additionalInfo?: {
+      company?: string;
+      address?: string;
+      notes?: string;
+    };
+  }) => {
     try {
       const customerPayload = {
         name: `${customerData.firstName} ${customerData.lastName}`.trim(),
@@ -167,6 +181,8 @@ export function CustomersPage() {
         notifyByEmail: customerData.notifyByEmail,
         notifyBySmsText: customerData.notifyBySmsText
       };
+
+      console.log('💾 Saving customer:', customerPayload);
 
       let response;
       if (editingCustomer) {
@@ -183,12 +199,36 @@ export function CustomersPage() {
         });
       }
 
-      if (!response.ok) throw new Error('Failed to save customer');
-      
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ API Error:', response.status, responseData);
+        
+        if (response.status === 409) {
+          // Handle duplicate customer error
+          const errorMessage = responseData.error || 'A customer with this email already exists';
+          alert(`Cannot create customer: ${errorMessage}`);
+          throw new Error(errorMessage);
+        } else if (response.status === 400) {
+          // Handle validation errors
+          const errorMessage = responseData.error || 'Please check your input data';
+          alert(`Validation Error: ${errorMessage}`);
+          throw new Error(errorMessage);
+        } else {
+          // Handle other errors
+          const errorMessage = responseData.error || 'Failed to save customer';
+          alert(`Error: ${errorMessage}`);
+          throw new Error(errorMessage);
+        }
+      }
+
+      console.log('✅ Customer saved successfully:', responseData);
+      alert('Customer saved successfully!');
       await fetchCustomers();
     } catch (error) {
       console.error('Error saving customer:', error);
-      throw error;
+      // Don't throw the error again as we've already shown the alert
+      // Just log it for debugging
     }
   };
 

@@ -7,13 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { 
+import {
   Settings,
   Users,
-  Shield,
   Database,
   Plug,
   Download,
@@ -21,153 +19,14 @@ import {
   Trash2,
   RefreshCw,
   CheckCircle,
-  XCircle,
   AlertTriangle,
   Copy,
   Eye,
   EyeOff,
   Save,
   Plus,
-  Edit,
   HelpCircle
 } from 'lucide-react';
-
-interface Integration {
-  id: string;
-  name: string;
-  description: string;
-  category: 'Payment' | 'Communication' | 'Analytics' | 'CRM' | 'Marketing' | 'Storage';
-  status: 'Connected' | 'Disconnected' | 'Error' | 'Pending';
-  icon: string;
-  lastSync?: string;
-  features: string[];
-}
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'Admin' | 'Manager' | 'Sales' | 'Support' | 'Installer';
-  status: 'Active' | 'Inactive' | 'Pending';
-  lastLogin?: string;
-  permissions: string[];
-}
-
-const mockIntegrations: Integration[] = [
-  {
-    id: '1',
-    name: 'Stripe',
-    description: 'Payment processing and subscription management',
-    category: 'Payment',
-    status: 'Connected',
-    icon: '💳',
-    lastSync: '2024-01-18T10:30:00Z',
-    features: ['Payment Processing', 'Subscription Billing', 'Invoicing', 'Refunds']
-  },
-  {
-    id: '2',
-    name: 'Google Analytics',
-    description: 'Website traffic and user behavior analytics',
-    category: 'Analytics',
-    status: 'Connected',
-    icon: '📊',
-    lastSync: '2024-01-18T09:15:00Z',
-    features: ['Traffic Analysis', 'Conversion Tracking', 'User Behavior', 'Goal Tracking']
-  },
-  {
-    id: '3',
-    name: 'Mailchimp',
-    description: 'Email marketing and automation platform',
-    category: 'Marketing',
-    status: 'Disconnected',
-    icon: '📧',
-    features: ['Email Campaigns', 'Automation', 'Audience Management', 'Analytics']
-  },
-  {
-    id: '4',
-    name: 'Salesforce',
-    description: 'Customer relationship management system',
-    category: 'CRM',
-    status: 'Error',
-    icon: '🏢',
-    features: ['Contact Management', 'Lead Tracking', 'Sales Pipeline', 'Reporting']
-  },
-  {
-    id: '5',
-    name: 'Twilio',
-    description: 'SMS and voice communication services',
-    category: 'Communication',
-    status: 'Pending',
-    icon: '📱',
-    features: ['SMS Messaging', 'Voice Calls', 'WhatsApp', 'Verification']
-  },
-  {
-    id: '6',
-    name: 'Google Drive',
-    description: 'Cloud storage and file management',
-    category: 'Storage',
-    status: 'Connected',
-    icon: '☁️',
-    lastSync: '2024-01-18T11:45:00Z',
-    features: ['File Storage', 'Document Sharing', 'Backup', 'Collaboration']
-  }
-];
-
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'John Smith',
-    email: 'john@company.com',
-    role: 'Admin',
-    status: 'Active',
-    lastLogin: '2024-01-18T14:30:00Z',
-    permissions: ['All Access', 'User Management', 'System Settings', 'Financial Data']
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    email: 'sarah@company.com',
-    role: 'Manager',
-    status: 'Active',
-    lastLogin: '2024-01-18T13:15:00Z',
-    permissions: ['Sales Management', 'Customer Data', 'Reporting', 'Team Management']
-  },
-  {
-    id: '3',
-    name: 'Mike Wilson',
-    email: 'mike@company.com',
-    role: 'Sales',
-    status: 'Active',
-    lastLogin: '2024-01-18T12:45:00Z',
-    permissions: ['Lead Management', 'Customer Contact', 'Quote Creation', 'Basic Reporting']
-  },
-  {
-    id: '4',
-    name: 'Lisa Brown',
-    email: 'lisa@company.com',
-    role: 'Support',
-    status: 'Inactive',
-    lastLogin: '2024-01-15T16:20:00Z',
-    permissions: ['Customer Support', 'Ticket Management', 'Knowledge Base']
-  }
-];
-
-const statusColors = {
-  'Connected': 'bg-green-100 text-green-800',
-  'Disconnected': 'bg-gray-100 text-gray-800',
-  'Error': 'bg-red-100 text-red-800',
-  'Pending': 'bg-yellow-100 text-yellow-800',
-  'Active': 'bg-green-100 text-green-800',
-  'Inactive': 'bg-gray-100 text-gray-800'
-};
-
-const roleColors = {
-  'Admin': 'bg-purple-100 text-purple-800',
-  'Manager': 'bg-blue-100 text-blue-800',
-  'Sales': 'bg-green-100 text-green-800',
-  'Support': 'bg-orange-100 text-orange-800',
-  'Installer': 'bg-gray-100 text-gray-800'
-};
 
 export function MorePage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -178,30 +37,6 @@ export function MorePage() {
     push: true,
     desktop: false
   });
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Connected':
-      case 'Active':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'Error':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'Pending':
-        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-      default:
-        return <XCircle className="h-4 w-4 text-gray-600" />;
-    }
-  };
 
   return (
     <div className="p-6 space-y-6">
@@ -225,37 +60,30 @@ export function MorePage() {
 
       {/* Tabs */}
       <Tabs>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger 
-            value="overview" 
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger
+            value="overview"
             onClick={() => setActiveTab('overview')}
             data-state={activeTab === 'overview' ? 'active' : 'inactive'}
           >
             Overview
           </TabsTrigger>
-          <TabsTrigger 
-            value="integrations" 
-            onClick={() => setActiveTab('integrations')}
-            data-state={activeTab === 'integrations' ? 'active' : 'inactive'}
-          >
-            Integrations
-          </TabsTrigger>
-          <TabsTrigger 
-            value="users" 
-            onClick={() => setActiveTab('users')}
-            data-state={activeTab === 'users' ? 'active' : 'inactive'}
-          >
-            User Management
-          </TabsTrigger>
-          <TabsTrigger 
-            value="settings" 
+          <TabsTrigger
+            value="settings"
             onClick={() => setActiveTab('settings')}
             data-state={activeTab === 'settings' ? 'active' : 'inactive'}
           >
             Settings
           </TabsTrigger>
-          <TabsTrigger 
-            value="system" 
+          <TabsTrigger
+            value="integrations"
+            onClick={() => setActiveTab('integrations')}
+            data-state={activeTab === 'integrations' ? 'active' : 'inactive'}
+          >
+            Integrations
+          </TabsTrigger>
+          <TabsTrigger
+            value="system"
             onClick={() => setActiveTab('system')}
             data-state={activeTab === 'system' ? 'active' : 'inactive'}
           >
@@ -281,7 +109,7 @@ export function MorePage() {
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('users')}>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-green-100 rounded-lg">
@@ -375,170 +203,24 @@ export function MorePage() {
                       <Users className="h-4 w-4 text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium text-sm">New user added</p>
-                      <p className="text-xs text-gray-600">Mike Wilson joined as Sales rep</p>
+                      <p className="font-medium text-sm">System initialized</p>
+                      <p className="text-xs text-gray-600">Application started successfully</p>
                     </div>
-                    <span className="text-xs text-gray-500">2h ago</span>
+                    <span className="text-xs text-gray-500">Recently</span>
                   </div>
                   <div className="flex items-center gap-3 p-3 border rounded">
                     <div className="p-2 bg-green-100 rounded">
-                      <Plug className="h-4 w-4 text-green-600" />
+                      <Database className="h-4 w-4 text-green-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium text-sm">Integration updated</p>
-                      <p className="text-xs text-gray-600">Stripe webhook configured</p>
+                      <p className="font-medium text-sm">Database connected</p>
+                      <p className="text-xs text-gray-600">Database connection established</p>
                     </div>
-                    <span className="text-xs text-gray-500">4h ago</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 border rounded">
-                    <div className="p-2 bg-orange-100 rounded">
-                      <Database className="h-4 w-4 text-orange-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">Backup completed</p>
-                      <p className="text-xs text-gray-600">Daily backup successful</p>
-                    </div>
-                    <span className="text-xs text-gray-500">6h ago</span>
+                    <span className="text-xs text-gray-500">Recently</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
-
-        {/* Integrations Tab */}
-        <TabsContent value="integrations" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockIntegrations.map(integration => (
-              <Card key={integration.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">{integration.icon}</div>
-                      <div>
-                        <h3 className="font-semibold">{integration.name}</h3>
-                        <p className="text-sm text-gray-600">{integration.category}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(integration.status)}
-                      <Badge className={statusColors[integration.status]}>
-                        {integration.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-4">{integration.description}</p>
-                  
-                  {integration.lastSync && (
-                    <p className="text-xs text-gray-500 mb-4">
-                      Last sync: {formatDate(integration.lastSync)}
-                    </p>
-                  )}
-                  
-                  <div className="space-y-2 mb-4">
-                    <p className="text-sm font-medium">Features:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {integration.features.slice(0, 3).map((feature, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {feature}
-                        </Badge>
-                      ))}
-                      {integration.features.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{integration.features.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    {integration.status === 'Connected' ? (
-                      <>
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Settings className="h-4 w-4 mr-2" />
-                          Configure
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <Button size="sm" className="flex-1">
-                        <Plug className="h-4 w-4 mr-2" />
-                        Connect
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* User Management Tab */}
-        <TabsContent value="users" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Team Members</h2>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Invite User
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            {mockUsers.map(user => (
-              <Card key={user.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                        <Users className="h-6 w-6 text-gray-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">{user.name}</h3>
-                        <p className="text-sm text-gray-600">{user.email}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge className={roleColors[user.role]}>
-                            {user.role}
-                          </Badge>
-                          <Badge className={statusColors[user.status]}>
-                            {user.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      {user.lastLogin && (
-                        <p className="text-sm text-gray-600 mb-2">
-                          Last login: {formatDate(user.lastLogin)}
-                        </p>
-                      )}
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Shield className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4">
-                    <p className="text-sm font-medium mb-2">Permissions:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {user.permissions.map((permission, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {permission}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         </TabsContent>
 
@@ -699,6 +381,19 @@ export function MorePage() {
           </div>
         </TabsContent>
 
+        {/* Integrations Tab */}
+        <TabsContent value="integrations" className="space-y-6">
+          <div className="text-center py-12">
+            <Plug className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Integrations Coming Soon</h3>
+            <p className="text-gray-600 mb-4">Connect with external services to enhance your workflow</p>
+            <Button variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Request Integration
+            </Button>
+          </div>
+        </TabsContent>
+
         {/* System Tab */}
         <TabsContent value="system" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -751,23 +446,15 @@ export function MorePage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Database Version</span>
-                  <span>PostgreSQL 14.2</span>
+                  <span>SQLite 3.x</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-medium">Last Update</span>
-                  <span>Jan 15, 2024</span>
+                  <span>{new Date().toLocaleDateString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="font-medium">Uptime</span>
-                  <span>15 days, 4 hours</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Storage Used</span>
-                  <span>2.3 GB / 10 GB</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Active Users</span>
-                  <span>4 / 10</span>
+                  <span className="font-medium">Environment</span>
+                  <span>Development</span>
                 </div>
               </CardContent>
             </Card>
@@ -777,16 +464,6 @@ export function MorePage() {
                 <CardTitle>Maintenance</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                    <p className="font-medium text-yellow-800">Scheduled Maintenance</p>
-                  </div>
-                  <p className="text-sm text-yellow-700">
-                    System maintenance scheduled for Jan 25, 2024 at 2:00 AM EST.
-                    Expected downtime: 2 hours.
-                  </p>
-                </div>
                 <Button variant="outline" className="w-full">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Run System Diagnostics
@@ -810,11 +487,7 @@ export function MorePage() {
                   <div className="space-y-2">
                     <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50">
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete All Customer Data
-                    </Button>
-                    <Button variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50">
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Factory Reset
+                      Reset All Data
                     </Button>
                   </div>
                 </div>
