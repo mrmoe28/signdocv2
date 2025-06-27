@@ -1,24 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mockInvoices, mockCustomers } from '@/lib/mock-data';
-import { UpdateInvoiceData } from '@/lib/types';
-import { calculateInvoiceTotals } from '@/lib/invoice-utils';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// Helper function to get authenticated user
+async function getAuthenticatedUser() {
+  try {
+    // For now, we'll use the admin user as fallback
+    // In a real app, you'd get this from the session/token
+    const adminUser = await prisma.user.findFirst({
+      where: { email: 'admin@ekosolar.com' }
+    });
+    
+    if (!adminUser) {
+      throw new Error('Admin user not found');
+    }
+    
+    return adminUser;
+  } catch (error) {
+    console.error('Error getting authenticated user:', error);
+    throw error;
+  }
+}
 
 // GET /api/invoices/[id] - Get invoice by ID
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const invoice = mockInvoices.find(inv => inv.id === id);
-  
-  if (!invoice) {
-    return NextResponse.json(
-      { error: 'Invoice not found' },
-      { status: 404 }
-    );
-  }
+  try {
+    const user = await getAuthenticatedUser();
+    const { id } = await params;
+    
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        id: id,
+        userId: user.id
+      },
+      include: {
+        customer: true
+      }
+    });
+    
+    if (!invoice) {
+      return NextResponse.json(
+        { error: 'Invoice not found' },
+        { status: 404 }
+      );
+    }
 
-  return NextResponse.json(invoice);
+    return NextResponse.json(invoice);
+  } catch (error) {
+    console.error('Error fetching invoice:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch invoice' },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 // PUT /api/invoices/[id] - Update invoice  
@@ -26,73 +66,40 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
   try {
-    const data: UpdateInvoiceData = await request.json();
-    const invoiceIndex = mockInvoices.findIndex(inv => inv.id === id);
+    const user = await getAuthenticatedUser();
+    const { id } = await params;
+    const data = await request.json();
     
-    if (invoiceIndex === -1) {
+    // Check if invoice exists and belongs to user
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: {
+        id: id,
+        userId: user.id
+      }
+    });
+    
+    if (!existingInvoice) {
       return NextResponse.json(
         { error: 'Invoice not found' },
         { status: 404 }
       );
     }
 
-    const existingInvoice = mockInvoices[invoiceIndex];
-    
-    // If customer is being updated, find the new customer
-    let customer = existingInvoice.customer;
-    if (data.customerId && data.customerId !== existingInvoice.customerId) {
-      const foundCustomer = mockCustomers.find(c => c.id === data.customerId);
-      if (!foundCustomer) {
-        return NextResponse.json(
-          { error: 'Customer not found' },
-          { status: 404 }
-        );
+    // Update invoice with provided data
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: id },
+      data: {
+        customerName: data.customerName || existingInvoice.customerName,
+        amount: data.amount !== undefined ? data.amount : existingInvoice.amount,
+        status: data.status || existingInvoice.status,
+        description: data.description !== undefined ? data.description : existingInvoice.description,
+        updatedAt: new Date()
+      },
+      include: {
+        customer: true
       }
-      customer = foundCustomer;
-    }
-
-    // Update items and recalculate if items changed
-    let items = existingInvoice.items;
-    let totals = {
-      subtotal: existingInvoice.subtotal,
-      taxAmount: existingInvoice.taxAmount,
-      discountAmount: existingInvoice.discountAmount,
-      total: existingInvoice.total
-    };
-
-    if (data.items) {
-      items = data.items.map((item, index) => ({
-        ...item,
-        id: `item-${Date.now()}-${index}`
-      }));
-      totals = calculateInvoiceTotals(items);
-    }
-
-    // Update invoice
-    const updatedInvoice = {
-      ...existingInvoice,
-      customerId: data.customerId || existingInvoice.customerId,
-      customer,
-      status: data.status || existingInvoice.status,
-      issueDate: data.issueDate || existingInvoice.issueDate,
-      dueDate: data.dueDate || existingInvoice.dueDate,
-      items,
-      ...totals,
-      notes: data.notes !== undefined ? data.notes : existingInvoice.notes,
-      terms: data.terms !== undefined ? data.terms : existingInvoice.terms,
-      jobLocation: data.jobLocation !== undefined ? data.jobLocation : existingInvoice.jobLocation,
-      jobName: data.jobName !== undefined ? data.jobName : existingInvoice.jobName,
-      workOrderNumber: data.workOrderNumber !== undefined ? data.workOrderNumber : existingInvoice.workOrderNumber,
-      purchaseOrderNumber: data.purchaseOrderNumber !== undefined ? data.purchaseOrderNumber : existingInvoice.purchaseOrderNumber,
-      invoiceType: data.invoiceType || existingInvoice.invoiceType,
-      adjustment: data.adjustment !== undefined ? data.adjustment : existingInvoice.adjustment,
-      adjustmentDescription: data.adjustmentDescription !== undefined ? data.adjustmentDescription : existingInvoice.adjustmentDescription,
-      updatedAt: new Date().toISOString()
-    };
-
-    mockInvoices[invoiceIndex] = updatedInvoice;
+    });
 
     return NextResponse.json(updatedInvoice);
   } catch (error) {
@@ -101,6 +108,8 @@ export async function PUT(
       { error: 'Failed to update invoice' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -109,12 +118,20 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
   try {
+    const user = await getAuthenticatedUser();
+    const { id } = await params;
     const { status } = await request.json();
-    const invoiceIndex = mockInvoices.findIndex(inv => inv.id === id);
     
-    if (invoiceIndex === -1) {
+    // Check if invoice exists and belongs to user
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: {
+        id: id,
+        userId: user.id
+      }
+    });
+    
+    if (!existingInvoice) {
       return NextResponse.json(
         { error: 'Invoice not found' },
         { status: 404 }
@@ -122,19 +139,26 @@ export async function PATCH(
     }
 
     // Update only the status
-    mockInvoices[invoiceIndex] = {
-      ...mockInvoices[invoiceIndex],
-      status,
-      updatedAt: new Date().toISOString()
-    };
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: id },
+      data: {
+        status: status,
+        updatedAt: new Date()
+      },
+      include: {
+        customer: true
+      }
+    });
 
-    return NextResponse.json(mockInvoices[invoiceIndex]);
+    return NextResponse.json(updatedInvoice);
   } catch (error) {
     console.error('Error updating invoice status:', error);
     return NextResponse.json(
       { error: 'Failed to update invoice status' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -143,17 +167,38 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const invoiceIndex = mockInvoices.findIndex(inv => inv.id === id);
-  
-  if (invoiceIndex === -1) {
+  try {
+    const user = await getAuthenticatedUser();
+    const { id } = await params;
+    
+    // Check if invoice exists and belongs to user
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: {
+        id: id,
+        userId: user.id
+      }
+    });
+    
+    if (!existingInvoice) {
+      return NextResponse.json(
+        { error: 'Invoice not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete the invoice
+    await prisma.invoice.delete({
+      where: { id: id }
+    });
+
+    return NextResponse.json({ message: 'Invoice deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting invoice:', error);
     return NextResponse.json(
-      { error: 'Invoice not found' },
-      { status: 404 }
+      { error: 'Failed to delete invoice' },
+      { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
-
-  mockInvoices.splice(invoiceIndex, 1);
-
-  return NextResponse.json({ message: 'Invoice deleted successfully' });
 } 

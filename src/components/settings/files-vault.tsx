@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -23,7 +22,8 @@ import {
   Search, 
   FolderOpen,
   Eye,
-  Calendar
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
 
 interface FileItem {
@@ -34,49 +34,42 @@ interface FileItem {
   uploadDate: string;
   category: 'invoice' | 'estimate' | 'receipt' | 'contract' | 'other';
   url?: string;
+  data?: string; // Base64 data for file content
 }
 
-const mockFiles: FileItem[] = [
-  {
-    id: '1',
-    name: 'company-logo.png',
-    type: 'image',
-    size: 245760,
-    uploadDate: '2024-01-15',
-    category: 'other',
-    url: '/placeholder-logo.png'
-  },
-  {
-    id: '2',
-    name: 'invoice-template.pdf',
-    type: 'pdf',
-    size: 1048576,
-    uploadDate: '2024-01-10',
-    category: 'invoice'
-  },
-  {
-    id: '3',
-    name: 'contract-abc-corp.docx',
-    type: 'document',
-    size: 524288,
-    uploadDate: '2024-01-08',
-    category: 'contract'
-  },
-  {
-    id: '4',
-    name: 'receipt-supplies.jpg',
-    type: 'image',
-    size: 186000,
-    uploadDate: '2024-01-05',
-    category: 'receipt'
-  }
-];
-
 export function FilesVault() {
-  const [files, setFiles] = useState<FileItem[]>(mockFiles);
+  const [files, setFiles] = useState<FileItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isUploading, setIsUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
+  const [error, setError] = useState<string>('');
+
+  // Load files from localStorage on component mount
+  useEffect(() => {
+    const savedFiles = localStorage.getItem('filesVaultData');
+    if (savedFiles) {
+      try {
+        const parsedFiles = JSON.parse(savedFiles);
+        setFiles(parsedFiles);
+      } catch (err) {
+        console.error('Error loading saved files:', err);
+        setError('Error loading saved files');
+      }
+    }
+  }, []);
+
+  // Save files to localStorage whenever files change
+  useEffect(() => {
+    if (files.length > 0) {
+      try {
+        localStorage.setItem('filesVaultData', JSON.stringify(files));
+      } catch (err) {
+        console.error('Error saving files:', err);
+        setError('Error saving files to storage');
+      }
+    }
+  }, [files]);
 
   const filteredFiles = files.filter(file => {
     const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -95,8 +88,7 @@ export function FilesVault() {
   const getFileIcon = (type: string) => {
     switch (type) {
       case 'image':
-        // eslint-disable-next-line jsx-a11y/alt-text
-        return <Image className="h-4 w-4" />;
+        return <Image className="h-4 w-4 text-green-600" />;
       case 'pdf':
         return <FileText className="h-4 w-4 text-red-600" />;
       case 'document':
@@ -121,45 +113,116 @@ export function FilesVault() {
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const determineFileType = (file: File): 'image' | 'document' | 'pdf' | 'other' => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type === 'application/pdf') return 'pdf';
+    if (file.type.includes('document') || file.type.includes('word') || file.type.includes('text')) return 'document';
+    return 'other';
+  };
+
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = event.target.files;
     if (!uploadedFiles) return;
 
     setIsUploading(true);
+    setError('');
 
-    // Simulate file upload
-    setTimeout(() => {
-      Array.from(uploadedFiles).forEach((file, index) => {
+    try {
+      const newFiles: FileItem[] = [];
+      
+      for (let i = 0; i < uploadedFiles.length; i++) {
+        const file = uploadedFiles[i];
+        
+        // Check file size (10MB limit)
+        if (file.size > 10 * 1024 * 1024) {
+          setError(`File ${file.name} is too large. Maximum size is 10MB.`);
+          continue;
+        }
+
+        // Read file content as base64
+        const data = await readFileAsBase64(file);
+        
         const newFile: FileItem = {
-          id: Date.now().toString() + index,
+          id: Date.now().toString() + i,
           name: file.name,
-          type: file.type.startsWith('image/') ? 'image' : 
-                file.type === 'application/pdf' ? 'pdf' : 
-                file.type.includes('document') ? 'document' : 'other',
+          type: determineFileType(file),
           size: file.size,
           uploadDate: new Date().toISOString().split('T')[0],
-          category: 'other'
+          category: 'other',
+          data: data
         };
-        setFiles(prev => [...prev, newFile]);
-      });
+        
+        newFiles.push(newFile);
+      }
+      
+      setFiles(prev => [...prev, ...newFiles]);
+    } catch (err) {
+      console.error('Error uploading files:', err);
+      setError('Error uploading files. Please try again.');
+    } finally {
       setIsUploading(false);
-    }, 2000);
+      // Reset the input
+      event.target.value = '';
+    }
   };
 
   const handleDelete = (fileId: string) => {
     if (confirm('Are you sure you want to delete this file?')) {
       setFiles(prev => prev.filter(f => f.id !== fileId));
+      if (previewFile?.id === fileId) {
+        setPreviewFile(null);
+      }
     }
   };
 
   const handleDownload = (file: FileItem) => {
-    // Simulate download
-    alert(`Downloading ${file.name}...`);
+    if (!file.data) {
+      setError('File data not available for download');
+      return;
+    }
+
+    try {
+      // Create a download link
+      const link = document.createElement('a');
+      link.href = file.data;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error downloading file:', err);
+      setError('Error downloading file');
+    }
   };
 
   const handlePreview = (file: FileItem) => {
-    // Simulate preview
-    alert(`Opening preview for ${file.name}...`);
+    if (!file.data) {
+      setError('File data not available for preview');
+      return;
+    }
+
+    setPreviewFile(file);
+  };
+
+  const closePreview = () => {
+    setPreviewFile(null);
+  };
+
+  const updateFileCategory = (fileId: string, category: string) => {
+    setFiles(prev => prev.map(file => 
+      file.id === fileId 
+        ? { ...file, category: category as FileItem['category'] }
+        : file
+    ));
   };
 
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
@@ -191,6 +254,26 @@ export function FilesVault() {
           </label>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-800">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setError('')}
+                className="ml-auto text-red-600 hover:text-red-700"
+              >
+                ×
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Storage Usage */}
       <Card>
@@ -273,9 +356,17 @@ export function FilesVault() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={getCategoryColor(file.category)}>
-                        {file.category.charAt(0).toUpperCase() + file.category.slice(1)}
-                      </Badge>
+                      <select
+                        value={file.category}
+                        onChange={(e) => updateFileCategory(file.id, e.target.value)}
+                        className={`px-2 py-1 rounded text-xs border-0 ${getCategoryColor(file.category)}`}
+                      >
+                        <option value="invoice">Invoice</option>
+                        <option value="estimate">Estimate</option>
+                        <option value="receipt">Receipt</option>
+                        <option value="contract">Contract</option>
+                        <option value="other">Other</option>
+                      </select>
                     </TableCell>
                     <TableCell className="font-mono text-sm">
                       {formatFileSize(file.size)}
@@ -330,6 +421,60 @@ export function FilesVault() {
           )}
         </CardContent>
       </Card>
+
+      {/* File Preview Modal */}
+      {previewFile && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] w-full flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold">{previewFile.name}</h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownload(previewFile)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+                <Button variant="ghost" size="sm" onClick={closePreview}>
+                  ×
+                </Button>
+              </div>
+            </div>
+            <div className="flex-1 p-4 overflow-auto">
+              {previewFile.type === 'image' && previewFile.data && (
+                <img
+                  src={previewFile.data}
+                  alt={previewFile.name}
+                  className="max-w-full h-auto mx-auto"
+                />
+              )}
+              {previewFile.type === 'pdf' && previewFile.data && (
+                <iframe
+                  src={previewFile.data}
+                  className="w-full h-[600px] border-0"
+                  title={previewFile.name}
+                />
+              )}
+              {previewFile.type === 'document' && (
+                <div className="text-center py-8 text-gray-500">
+                  <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p>Document preview not available</p>
+                  <p className="text-sm mt-2">Click download to view the document</p>
+                </div>
+              )}
+              {previewFile.type === 'other' && (
+                <div className="text-center py-8 text-gray-500">
+                  <File className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p>Preview not available for this file type</p>
+                  <p className="text-sm mt-2">Click download to view the file</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* File Management Tips */}
       <Card>

@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { verifyToken } from '@/lib/auth';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { InvoicePDF } from '@/lib/pdf-generator';
 
 const prisma = new PrismaClient();
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get auth token from cookies
@@ -23,10 +21,13 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
+    // Await params
+    const { id } = await params;
+
     // Get invoice with customer details
     const invoice = await prisma.invoice.findFirst({
       where: {
-        id: params.id,
+        id: id,
         userId: decoded.userId
       },
       include: {
@@ -38,59 +39,35 @@ export async function GET(
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
-    // Mock line items for now (in real app, you'd store these in database)
-    const mockLineItems = [
-      {
-        description: 'Professional Services',
-        quantity: 1,
-        rate: invoice.amount,
-        amount: invoice.amount
-      }
-    ];
+    // Generate invoice content
 
-    // Prepare invoice data for PDF
-    const invoiceData = {
-      invoiceId: invoice.invoiceId,
-      customerName: invoice.customerName,
-      amount: invoice.amount,
-      status: invoice.status,
-      createdAt: invoice.createdAt.toISOString(),
-      customer: invoice.customer ? {
-        name: invoice.customer.name,
-        email: invoice.customer.email,
-        company: invoice.customer.company || undefined,
-        address: invoice.customer.address || undefined,
-        phone: invoice.customer.phone || undefined,
-      } : undefined,
-      lineItems: mockLineItems,
-      issueDate: invoice.createdAt.toISOString(),
-      description: invoice.description || undefined,
-      subtotal: invoice.amount,
-      taxAmount: 0,
-      discountAmount: 0,
-      tax: 0,
-      discount: 0
-    };
+    // For now, return a simple text response until PDF generation is fixed
+    const pdfContent = `
+INVOICE #${invoice.invoiceId}
 
-    // Generate PDF buffer
-    const pdfBuffer = await renderToBuffer(
-      InvoicePDF({ invoice: invoiceData, companyInfo: {
-          name: '',
-          address: '',
-          phone: '',
-          email: ''
-      } })
-    );
+Bill To: ${invoice.customerName}
+Amount: $${invoice.amount}
+Status: ${invoice.status}
+Date: ${new Date(invoice.createdAt).toLocaleDateString()}
 
-    // Return PDF as response
-    return new NextResponse(pdfBuffer, {
+Description: ${invoice.description || 'Professional Services'}
+
+Total: $${invoice.amount}
+
+Thank you for your business!
+EKO SOLAR
+    `.trim();
+
+    // Return as plain text for now
+    return new NextResponse(pdfContent, {
       status: 200,
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="invoice-${invoice.invoiceId}.pdf"`,
-        'Content-Length': pdfBuffer.length.toString(),
+        'Content-Type': 'text/plain',
+        'Content-Disposition': `attachment; filename="invoice-${invoice.invoiceId}.txt"`,
       },
     });
+
+    // Note: This was replaced with text content above
 
   } catch (error) {
     console.error('PDF generation error:', error);

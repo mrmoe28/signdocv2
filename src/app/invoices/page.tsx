@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, FileText, DollarSign, Calendar, Eye, Edit, Trash2, Download, Mail } from 'lucide-react';
 import { BackButton } from '@/components/ui/back-button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface Invoice {
   id: string;
@@ -18,6 +19,7 @@ interface Invoice {
   status: string;
   createdAt: string;
   updatedAt: string;
+  description?: string;
   customer?: {
     id: string;
     name: string;
@@ -32,6 +34,9 @@ export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [emailLoading, setEmailLoading] = useState<string | null>(null);
+  const [downloadLoading, setDownloadLoading] = useState<string | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+  const [showViewDialog, setShowViewDialog] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
@@ -56,18 +61,86 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleSendEmail = async (invoiceId: string) => {
+  const handleViewInvoice = async (invoice: Invoice) => {
     try {
-      setEmailLoading(invoiceId);
-      const response = await fetch(`/api/invoices/${invoiceId}/send-email`, {
+      // Fetch full invoice details
+      const response = await fetch(`/api/invoices/${invoice.id}`);
+      if (response.ok) {
+        const fullInvoice = await response.json();
+        setViewingInvoice(fullInvoice);
+        setShowViewDialog(true);
+      } else {
+        alert('Failed to load invoice details');
+      }
+    } catch (error) {
+      console.error('Error fetching invoice:', error);
+      alert('Failed to load invoice details');
+    }
+  };
+
+  const handleEditInvoice = (invoice: Invoice) => {
+    // Navigate to edit page (you can implement this route)
+    window.location.href = `/invoices/edit/${invoice.id}`;
+  };
+
+  const handleDownloadPDF = async (invoice: Invoice) => {
+    try {
+      setDownloadLoading(invoice.id);
+      const response = await fetch(`/api/invoices/${invoice.id}/pdf`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoice-${invoice.invoiceId || invoice.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const error = await response.json();
+        alert(`Failed to download PDF: ${error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again.');
+    } finally {
+      setDownloadLoading(null);
+    }
+  };
+
+  const handleSendEmail = async (invoice: Invoice) => {
+    if (!invoice.customer?.email && !invoice.customerName) {
+      alert('No customer email available for this invoice');
+      return;
+    }
+
+    const confirmed = confirm(`Send invoice ${invoice.invoiceId || invoice.id} to ${invoice.customer?.email || invoice.customerName}?`);
+    if (!confirmed) return;
+
+    try {
+      setEmailLoading(invoice.id);
+      const response = await fetch(`/api/invoices/${invoice.id}/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          recipientEmail: invoice.customer?.email || `${invoice.customerName.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+          subject: `Invoice ${invoice.invoiceId || invoice.id} from EKO SOLAR`,
+          message: `Dear ${invoice.customerName},\n\nPlease find your invoice attached.\n\nAmount: $${invoice.amount}\nStatus: ${invoice.status}\n\nThank you for your business!\n\nBest regards,\nEKO SOLAR Team`
+        })
       });
 
       if (response.ok) {
         alert('Invoice email sent successfully!');
+        // Update invoice status to 'Sent' if it was 'Draft'
+        if (invoice.status === 'Draft') {
+          setInvoices(prev => prev.map(inv => 
+            inv.id === invoice.id ? { ...inv, status: 'Sent' } : inv
+          ));
+        }
       } else {
         const error = await response.json();
         alert(`Failed to send email: ${error.message || 'Unknown error'}`);
@@ -80,19 +153,25 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleDeleteInvoice = async (invoiceId: string) => {
+  const handleDeleteInvoice = async (invoice: Invoice) => {
+    const confirmed = confirm(`Are you sure you want to delete invoice ${invoice.invoiceId || invoice.id}? This action cannot be undone.`);
+    if (!confirmed) return;
+
     try {
-      const response = await fetch(`/api/invoices/${invoiceId}`, {
+      const response = await fetch(`/api/invoices/${invoice.id}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        setInvoices(invoices.filter(inv => inv.id !== invoiceId));
+        setInvoices(invoices.filter(inv => inv.id !== invoice.id));
+        alert('Invoice deleted successfully');
       } else {
-        console.error('Failed to delete invoice');
+        const error = await response.json();
+        alert(`Failed to delete invoice: ${error.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting invoice:', error);
+      alert('Failed to delete invoice. Please try again.');
     }
   };
 
@@ -303,15 +382,20 @@ export default function InvoicesPage() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => window.open(`/api/invoices/${invoice.id}/pdf`, '_blank')}
+                            onClick={() => handleDownloadPDF(invoice)}
+                            disabled={downloadLoading === invoice.id}
                             title="Download PDF"
                           >
-                            <Download className="h-4 w-4" />
+                            {downloadLoading === invoice.id ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
                           </Button>
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleSendEmail(invoice.id)}
+                            onClick={() => handleSendEmail(invoice)}
                             disabled={emailLoading === invoice.id}
                             title="Send Email"
                           >
@@ -321,17 +405,28 @@ export default function InvoicesPage() {
                               <Mail className="h-4 w-4" />
                             )}
                           </Button>
-                          <Button variant="outline" size="sm" title="View Invoice">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleViewInvoice(invoice)}
+                            title="View Invoice"
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm" title="Edit Invoice">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleEditInvoice(invoice)}
+                            title="Edit Invoice"
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            onClick={() => handleDeleteInvoice(invoice.id)}
+                            onClick={() => handleDeleteInvoice(invoice)}
                             title="Delete Invoice"
+                            className="text-red-600 hover:text-red-700 hover:border-red-300"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -345,6 +440,88 @@ export default function InvoicesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Invoice View Dialog */}
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Invoice Details</DialogTitle>
+          </DialogHeader>
+          {viewingInvoice && (
+            <div className="space-y-6">
+              {/* Invoice Header */}
+              <div className="flex justify-between items-start p-6 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold">
+                    EKO
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-green-600">EKO SOLAR</h2>
+                    <p className="text-sm text-gray-600">Professional Solar Solutions</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <h3 className="text-2xl font-bold text-gray-800">INVOICE</h3>
+                  <p className="text-lg text-gray-600">#{viewingInvoice.invoiceId}</p>
+                  <div className="mt-2">
+                    {getStatusBadge(viewingInvoice.status)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-2">Bill To:</h4>
+                  <div className="space-y-1">
+                    <p className="font-medium">{viewingInvoice.customerName}</p>
+                    {viewingInvoice.customer?.company && (
+                      <p className="text-sm text-gray-600">{viewingInvoice.customer.company}</p>
+                    )}
+                    {viewingInvoice.customer?.email && (
+                      <p className="text-sm text-gray-600">{viewingInvoice.customer.email}</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-2">Invoice Info:</h4>
+                  <div className="space-y-1">
+                    <p className="text-sm"><span className="font-medium">Date:</span> {formatDate(viewingInvoice.createdAt)}</p>
+                    <p className="text-sm"><span className="font-medium">Amount:</span> {formatCurrency(viewingInvoice.amount)}</p>
+                    {viewingInvoice.description && (
+                      <p className="text-sm"><span className="font-medium">Description:</span> {viewingInvoice.description}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleDownloadPDF(viewingInvoice)}
+                  disabled={downloadLoading === viewingInvoice.id}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download PDF
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleSendEmail(viewingInvoice)}
+                  disabled={emailLoading === viewingInvoice.id}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Send Email
+                </Button>
+                <Button onClick={() => handleEditInvoice(viewingInvoice)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Invoice
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

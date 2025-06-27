@@ -279,6 +279,14 @@ export function DashboardContent() {
     if (dashboardData.loading) return [];
 
     const { customers, invoices, payments, leads, appointments } = dashboardData;
+    
+    // Ensure all data are arrays
+    const safeCustomers = Array.isArray(customers) ? customers : [];
+    const safeInvoices = Array.isArray(invoices) ? invoices : [];
+    const safePayments = Array.isArray(payments) ? payments : [];
+    const safeLeads = Array.isArray(leads) ? leads : [];
+    const safeAppointments = Array.isArray(appointments) ? appointments : [];
+    
     const activities: Array<{
       id: string;
       type: 'invoice' | 'customer' | 'payment' | 'lead' | 'appointment';
@@ -290,7 +298,7 @@ export function DashboardContent() {
     }> = [];
 
     // Add recent invoices
-    invoices.slice(0, 2).forEach((invoice: any) => {
+    safeInvoices.slice(0, 2).forEach((invoice: any) => {
       activities.push({
         id: `invoice-${invoice.id}`,
         type: 'invoice',
@@ -303,7 +311,7 @@ export function DashboardContent() {
     });
 
     // Add recent customers
-    customers.slice(0, 1).forEach((customer: any) => {
+    safeCustomers.slice(0, 1).forEach((customer: any) => {
       activities.push({
         id: `customer-${customer.id}`,
         type: 'customer',
@@ -316,7 +324,7 @@ export function DashboardContent() {
     });
 
     // Add recent payments
-    payments.slice(0, 1).forEach((payment: any) => {
+    safePayments.slice(0, 1).forEach((payment: any) => {
       activities.push({
         id: `payment-${payment.id}`,
         type: 'payment',
@@ -329,7 +337,7 @@ export function DashboardContent() {
     });
 
     // Add recent appointments
-    appointments.slice(0, 1).forEach((appointment: any) => {
+    safeAppointments.slice(0, 1).forEach((appointment: any) => {
       activities.push({
         id: `appointment-${appointment.id}`,
         type: 'appointment',
@@ -374,26 +382,33 @@ export function DashboardContent() {
 
     const { customers, invoices, payments, leads, appointments } = dashboardData;
     
+    // Ensure all data are arrays
+    const safeCustomers = Array.isArray(customers) ? customers : [];
+    const safeInvoices = Array.isArray(invoices) ? invoices : [];
+    const safePayments = Array.isArray(payments) ? payments : [];
+    const safeLeads = Array.isArray(leads) ? leads : [];
+    const safeAppointments = Array.isArray(appointments) ? appointments : [];
+    
     // Calculate monthly revenue from payments
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    const monthlyPayments = payments.filter((payment: any) => {
+    const monthlyPayments = safePayments.filter((payment: any) => {
       const paymentDate = new Date(payment.paymentDate || payment.createdAt);
       return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
     });
     const monthlyRevenue = monthlyPayments.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0);
 
     // Calculate outstanding invoices
-    const outstandingInvoices = invoices.filter((invoice: any) => 
+    const outstandingInvoices = safeInvoices.filter((invoice: any) => 
       invoice.status === 'Draft' || invoice.status === 'Sent' || invoice.status === 'Overdue'
     );
     const outstandingAmount = outstandingInvoices.reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
 
     // Calculate pipeline value from leads
-    const pipelineValue = leads.reduce((sum: number, lead: any) => sum + (lead.estimatedValue || 0), 0);
+    const pipelineValue = safeLeads.reduce((sum: number, lead: any) => sum + (lead.estimatedValue || 0), 0);
 
     // Calculate total revenue from all invoices
-    const totalRevenue = invoices.reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
+    const totalRevenue = safeInvoices.reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
     
     // Mock expenses for now (could be calculated from a separate expenses API)
     const totalExpenses = 900;
@@ -402,34 +417,34 @@ export function DashboardContent() {
 
     // Today's appointments
     const today = new Date().toDateString();
-    const todaysAppointments = appointments.filter((apt: any) => 
+    const todaysAppointments = safeAppointments.filter((apt: any) => 
       new Date(apt.scheduledDate).toDateString() === today
     );
 
     // Tomorrow's appointments
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowsAppointments = appointments.filter((apt: any) => 
+    const tomorrowsAppointments = safeAppointments.filter((apt: any) => 
       new Date(apt.scheduledDate).toDateString() === tomorrow.toDateString()
     );
 
     // New leads this month
-    const newLeadsThisMonth = leads.filter((lead: any) => {
+    const newLeadsThisMonth = safeLeads.filter((lead: any) => {
       const leadDate = new Date(lead.createdAt);
       return leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
     }).length;
 
     // Draft invoices (estimates)
-    const estimates = invoices.filter((invoice: any) => invoice.status === 'Draft');
+    const estimates = safeInvoices.filter((invoice: any) => invoice.status === 'Draft');
     const estimatesValue = estimates.reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
 
     return {
       monthlyRevenue: `$${monthlyRevenue.toFixed(2)}`,
-      jobsCompleted: `${todaysAppointments.length}/${appointments.length}`,
+      jobsCompleted: `${todaysAppointments.length}/${safeAppointments.length}`,
       outstandingInvoices: `$${outstandingAmount.toFixed(2)}`,
       outstandingCount: outstandingInvoices.length,
       pipelineValue: `$${pipelineValue.toFixed(2)}`,
-      pipelineCount: leads.length,
+      pipelineCount: safeLeads.length,
       totalRevenue: `$${totalRevenue.toFixed(2)}`,
       totalExpenses: `$${totalExpenses.toFixed(2)}`,
       netProfit: `$${netProfit.toFixed(2)}`,
@@ -442,8 +457,8 @@ export function DashboardContent() {
       newLeads: newLeadsThisMonth,
       estimatesCreated: `$${estimatesValue.toFixed(2)}`,
       estimatesCount: estimates.length,
-      activeCustomers: customers.length,
-      totalInvoices: invoices.length
+      activeCustomers: safeCustomers.length,
+      totalInvoices: safeInvoices.length
     };
   }, [dashboardData]);
 
