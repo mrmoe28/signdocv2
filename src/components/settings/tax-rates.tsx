@@ -7,7 +7,7 @@ import {
   Plus
 } from 'lucide-react';
 
-export function TaxRatesSettings() {
+export function TaxRates() {
   return (
     <Card>
       <CardHeader>

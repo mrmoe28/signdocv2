@@ -5,8 +5,8 @@ import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  TrendingUp, 
+import {
+  TrendingUp,
   Calendar,
   DollarSign,
   FileText,
@@ -115,13 +115,13 @@ function ReportCard({ title, value, count, trend, icon }: ReportCardProps) {
 }
 
 // Widget wrapper component with drag handle and minimize
-function DashboardWidget({ 
-  children, 
-  isDraggable = false, 
-  widgetId, 
-  onMinimize, 
-  isMinimized = false 
-}: { 
+function DashboardWidget({
+  children,
+  isDraggable = false,
+  widgetId,
+  onMinimize,
+  isMinimized = false
+}: {
   children: React.ReactNode;
   isDraggable?: boolean;
   widgetId: string;
@@ -132,7 +132,7 @@ function DashboardWidget({
     <div className="h-full relative group">
       {isDraggable && (
         <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
-          <div 
+          <div
             className="bg-gray-800 text-white p-1 rounded cursor-pointer hover:bg-gray-700"
             onClick={() => onMinimize?.(widgetId)}
             title={isMinimized ? "Restore" : "Minimize"}
@@ -173,7 +173,7 @@ export function DashboardContent() {
   const [layouts, setLayouts] = useState(defaultLayouts);
   const [isDraggable, setIsDraggable] = useState(false);
   const [minimizedCards, setMinimizedCards] = useState<Set<string>>(new Set());
-  
+
   // Real data states
   const [dashboardData, setDashboardData] = useState<{
     customers: any[];
@@ -198,7 +198,7 @@ export function DashboardContent() {
     const fetchDashboardData = async () => {
       try {
         setDashboardData(prev => ({ ...prev, loading: true, error: null }));
-        
+
         const [customersRes, invoicesRes, paymentsRes, leadsRes, appointmentsRes] = await Promise.all([
           fetch('/api/customers'),
           fetch('/api/invoices'),
@@ -246,7 +246,7 @@ export function DashboardContent() {
 
 
 
-  const handleLayoutChange = (layout: Array<{i: string; x: number; y: number; w: number; h: number; minW?: number; minH?: number}>) => {
+  const handleLayoutChange = (layout: Array<{ i: string; x: number; y: number; w: number; h: number; minW?: number; minH?: number }>) => {
     setLayouts(layout.map(item => ({
       ...item,
       minW: item.minW || 2,
@@ -279,14 +279,13 @@ export function DashboardContent() {
     if (dashboardData.loading) return [];
 
     const { customers, invoices, payments, leads, appointments } = dashboardData;
-    
+
     // Ensure all data are arrays
     const safeCustomers = Array.isArray(customers) ? customers : [];
     const safeInvoices = Array.isArray(invoices) ? invoices : [];
     const safePayments = Array.isArray(payments) ? payments : [];
-    const safeLeads = Array.isArray(leads) ? leads : [];
     const safeAppointments = Array.isArray(appointments) ? appointments : [];
-    
+
     const activities: Array<{
       id: string;
       type: 'invoice' | 'customer' | 'payment' | 'lead' | 'appointment';
@@ -298,7 +297,7 @@ export function DashboardContent() {
     }> = [];
 
     // Add recent invoices
-    safeInvoices.slice(0, 2).forEach((invoice: any) => {
+    safeInvoices.slice(0, 2).forEach((invoice: unknown) => {
       activities.push({
         id: `invoice-${invoice.id}`,
         type: 'invoice',
@@ -311,7 +310,7 @@ export function DashboardContent() {
     });
 
     // Add recent customers
-    safeCustomers.slice(0, 1).forEach((customer: any) => {
+    safeCustomers.slice(0, 1).forEach((customer: never) => {
       activities.push({
         id: `customer-${customer.id}`,
         type: 'customer',
@@ -381,14 +380,14 @@ export function DashboardContent() {
     }
 
     const { customers, invoices, payments, leads, appointments } = dashboardData;
-    
+
     // Ensure all data are arrays
     const safeCustomers = Array.isArray(customers) ? customers : [];
     const safeInvoices = Array.isArray(invoices) ? invoices : [];
     const safePayments = Array.isArray(payments) ? payments : [];
     const safeLeads = Array.isArray(leads) ? leads : [];
     const safeAppointments = Array.isArray(appointments) ? appointments : [];
-    
+
     // Calculate monthly revenue from payments
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
@@ -399,7 +398,7 @@ export function DashboardContent() {
     const monthlyRevenue = monthlyPayments.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0);
 
     // Calculate outstanding invoices
-    const outstandingInvoices = safeInvoices.filter((invoice: any) => 
+    const outstandingInvoices = safeInvoices.filter((invoice: any) =>
       invoice.status === 'Draft' || invoice.status === 'Sent' || invoice.status === 'Overdue'
     );
     const outstandingAmount = outstandingInvoices.reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
@@ -409,7 +408,7 @@ export function DashboardContent() {
 
     // Calculate total revenue from all invoices
     const totalRevenue = safeInvoices.reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
-    
+
     // Mock expenses for now (could be calculated from a separate expenses API)
     const totalExpenses = 900;
     const netProfit = totalRevenue - totalExpenses;
@@ -417,14 +416,14 @@ export function DashboardContent() {
 
     // Today's appointments
     const today = new Date().toDateString();
-    const todaysAppointments = safeAppointments.filter((apt: any) => 
+    const todaysAppointments = safeAppointments.filter((apt: any) =>
       new Date(apt.scheduledDate).toDateString() === today
     );
 
     // Tomorrow's appointments
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowsAppointments = safeAppointments.filter((apt: any) => 
+    const tomorrowsAppointments = safeAppointments.filter((apt: any) =>
       new Date(apt.scheduledDate).toDateString() === tomorrow.toDateString()
     );
 
@@ -479,7 +478,7 @@ export function DashboardContent() {
     >
       {/* Enhanced KPI Cards */}
       <div key="kpi-1" style={{ display: minimizedCards.has('kpi-1') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="kpi-1"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -494,9 +493,9 @@ export function DashboardContent() {
           />
         </DashboardWidget>
       </div>
-      
+
       <div key="kpi-2" style={{ display: minimizedCards.has('kpi-2') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="kpi-2"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -512,9 +511,9 @@ export function DashboardContent() {
           />
         </DashboardWidget>
       </div>
-      
+
       <div key="kpi-3" style={{ display: minimizedCards.has('kpi-3') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="kpi-3"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -529,9 +528,9 @@ export function DashboardContent() {
           />
         </DashboardWidget>
       </div>
-      
+
       <div key="kpi-4" style={{ display: minimizedCards.has('kpi-4') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="kpi-4"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -550,7 +549,7 @@ export function DashboardContent() {
 
       {/* Enhanced Dashboard Cards */}
       <div key="today-reports" style={{ display: minimizedCards.has('today-reports') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="today-reports"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -564,34 +563,34 @@ export function DashboardContent() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 overflow-y-auto">
-              <ReportCard 
-                title="Today's Jobs" 
-                value={metrics.todaysJobs} 
-                count={metrics.todaysJobsCount.toString()} 
+              <ReportCard
+                title="Today's Jobs"
+                value={metrics.todaysJobs}
+                count={metrics.todaysJobsCount.toString()}
                 icon={<Calendar className="h-4 w-4" />}
                 trend={{ value: "0%", direction: "up" }}
               />
-              <ReportCard 
-                title="Revenue Earned" 
-                value={metrics.revenueEarned} 
+              <ReportCard
+                title="Revenue Earned"
+                value={metrics.revenueEarned}
                 icon={<DollarSign className="h-4 w-4" />}
                 trend={{ value: "+15%", direction: "up" }}
               />
-              <ReportCard 
-                title="Tomorrow's Schedule" 
-                value={metrics.tomorrowsJobs} 
-                count={`${metrics.tomorrowsJobsCount} jobs`} 
+              <ReportCard
+                title="Tomorrow's Schedule"
+                value={metrics.tomorrowsJobs}
+                count={`${metrics.tomorrowsJobsCount} jobs`}
                 icon={<Calendar className="h-4 w-4" />}
               />
-              <ReportCard 
-                title="New Leads" 
-                value={metrics.newLeads.toString()} 
+              <ReportCard
+                title="New Leads"
+                value={metrics.newLeads.toString()}
                 icon={<Users className="h-4 w-4" />}
               />
-              <ReportCard 
-                title="Estimates Created" 
-                value={metrics.estimatesCreated} 
-                count={metrics.estimatesCount.toString()} 
+              <ReportCard
+                title="Estimates Created"
+                value={metrics.estimatesCreated}
+                count={metrics.estimatesCount.toString()}
                 icon={<FileText className="h-4 w-4" />}
               />
             </CardContent>
@@ -600,7 +599,7 @@ export function DashboardContent() {
       </div>
 
       <div key="profit-loss" style={{ display: minimizedCards.has('profit-loss') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="profit-loss"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -640,7 +639,7 @@ export function DashboardContent() {
       </div>
 
       <div key="job-forecast" style={{ display: minimizedCards.has('job-forecast') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="job-forecast"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -690,7 +689,7 @@ export function DashboardContent() {
 
       {/* New Enhanced Business Performance Card */}
       <div key="business-performance" style={{ display: minimizedCards.has('business-performance') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="business-performance"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -748,7 +747,7 @@ export function DashboardContent() {
 
       {/* New Recent Activity Card */}
       <div key="recent-activity" style={{ display: minimizedCards.has('recent-activity') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="recent-activity"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -789,7 +788,7 @@ export function DashboardContent() {
       </div>
 
       <div key="total-sales" style={{ display: minimizedCards.has('total-sales') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="total-sales"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -816,7 +815,7 @@ export function DashboardContent() {
       </div>
 
       <div key="invoice-aging" style={{ display: minimizedCards.has('invoice-aging') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="invoice-aging"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -855,7 +854,7 @@ export function DashboardContent() {
       </div>
 
       <div key="estimate-aging" style={{ display: minimizedCards.has('estimate-aging') ? 'none' : 'block' }}>
-        <DashboardWidget 
+        <DashboardWidget
           widgetId="estimate-aging"
           isDraggable={isDraggable}
           onMinimize={handleMinimize}
@@ -913,8 +912,8 @@ export function DashboardContent() {
             <AlertTriangle className="h-12 w-12 mx-auto mb-2" />
           </div>
           <p className="text-gray-600">{dashboardData.error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Retry
@@ -951,7 +950,7 @@ export function DashboardContent() {
                 <SelectItem value="Last Quarter">Last Quarter</SelectItem>
               </SelectContent>
             </Select>
-            <Button 
+            <Button
               onClick={handleCustomizeClick}
               variant={isCustomizeMode ? "default" : "outline"}
               className="flex items-center gap-2"
@@ -964,7 +963,7 @@ export function DashboardContent() {
             </div>
           </div>
         </div>
-        
+
         {isCustomizeMode && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
             <div className="flex items-center justify-between">

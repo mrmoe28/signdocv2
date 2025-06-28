@@ -9,7 +9,7 @@ import {
   Plus
 } from 'lucide-react';
 
-export function EmailSMSTemplatesSettings() {
+export function EmailSmsTemplates() {
   return (
     <Card>
       <CardHeader>

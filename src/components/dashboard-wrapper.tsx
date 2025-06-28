@@ -32,7 +32,7 @@ function DashboardContent() {
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
     const invoiceId = searchParams.get('invoice');
-    
+
     if (paymentStatus === 'success' && invoiceId) {
       // Update invoice status to paid
       updateInvoiceStatus(invoiceId, 'Paid');
@@ -46,6 +46,11 @@ function DashboardContent() {
   }, [searchParams]);
 
   const updateInvoiceStatus = async (invoiceId: string, status: string) => {
+    if (!invoiceId) {
+      console.error('Invoice ID is required to update status');
+      return;
+    }
+
     try {
       const response = await fetch(`/api/invoices/${invoiceId}`, {
         method: 'PATCH',
@@ -54,7 +59,7 @@ function DashboardContent() {
         },
         body: JSON.stringify({ status }),
       });
-      
+
       if (!response.ok) {
         console.error('Failed to update invoice status');
       }
@@ -98,11 +103,11 @@ function DashboardContent() {
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Top Navigation */}
       <TopNavigation activeTab={activeTab} onTabChange={handleTabChange} />
-      
+
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar Navigation */}
         <SidebarNavigation activeTab={activeTab} onTabChangeAction={handleTabChange} />
-        
+
         {/* Main Content */}
         <div className="flex-1 overflow-auto">
           {/* Add top padding on mobile to account for menu button */}
@@ -118,43 +123,41 @@ function DashboardContent() {
             {activeTab === 'more' && <MorePage />}
             {activeTab === 'payments' && <PaymentsPage />}
             {activeTab === 'customers' && <CustomersPage />}
-            
+
             {activeTab !== 'home' && activeTab !== 'schedule' && activeTab !== 'sales' && activeTab !== 'expenses' && activeTab !== 'leads' && activeTab !== 'marketing' && activeTab !== 'automation' && activeTab !== 'reports' && activeTab !== 'more' && activeTab !== 'payments' && activeTab !== 'customers' && (
               <div className="p-4 md:p-6">
-              {viewMode === 'list' && activeTab === 'invoices-payments' && (
-                <InvoiceList
-                  onCreateNew={handleCreateNew}
-                  onEditInvoice={handleEditInvoice}
-                  onViewInvoice={handleViewInvoice}
-                />
-              )}
+                {viewMode === 'list' && activeTab === 'invoices-payments' && (
+                  <InvoiceList
+                    onCreateNew={handleCreateNew}
+                    onEditInvoice={handleEditInvoice}
+                    onViewInvoice={handleViewInvoice}
+                  />
+                )}
 
-              {(viewMode === 'create' || viewMode === 'edit') && (
-                <InvoiceForm
-                  invoice={selectedInvoice || undefined}
-                  onSave={handleSaveInvoice}
-                  onCancel={handleCancel}
-                />
-              )}
+                {(viewMode === 'create' || viewMode === 'edit') && (
+                  <InvoiceForm
+                    invoice={selectedInvoice || undefined}
+                    onSave={handleSaveInvoice}
+                    onCancel={handleCancel}
+                  />
+                )}
 
-              {viewMode === 'view' && selectedInvoice && (
-                <InvoiceView
-                  invoice={selectedInvoice}
-                  onEdit={() => handleEditInvoice(selectedInvoice)}
-                  onBack={handleCancel}
-                />
-              )}
-              
-              {activeTab !== 'invoices-payments' && (
-                <div className="text-center py-20">
-                  <h2 className="text-2xl font-bold text-gray-400 mb-4">
-                    {activeTab.charAt(0).toUpperCase() + activeTab.slice(1).replace('-', ' & ')}
-                  </h2>
-                  <p className="text-gray-500">This section is coming soon.</p>
-                </div>
-              )}
-            </div>
-          )}
+                {viewMode === 'view' && selectedInvoice && (
+                  <InvoiceView
+                    invoiceId={selectedInvoice.id}
+                  />
+                )}
+
+                {activeTab !== 'invoices-payments' && (
+                  <div className="text-center py-20">
+                    <h2 className="text-2xl font-bold text-gray-400 mb-4">
+                      {activeTab.charAt(0).toUpperCase() + activeTab.slice(1).replace('-', ' & ')}
+                    </h2>
+                    <p className="text-gray-500">This section is coming soon.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
