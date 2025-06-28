@@ -80,7 +80,10 @@ export function InvoiceView({ invoiceId }: InvoiceViewProps) {
     if (!invoice) return;
 
     try {
-      const response = await fetch(`/api/invoices/${invoice.id}/pdf`);
+      const response = await fetch(`/api/invoices/${invoice.id}/pdf`, {
+        credentials: 'include'
+      });
+
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -93,11 +96,13 @@ export function InvoiceView({ invoiceId }: InvoiceViewProps) {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        alert('Failed to download invoice');
+        const errorText = await response.text();
+        console.error('PDF download failed:', errorText);
+        alert(`Failed to download invoice: ${response.status}`);
       }
     } catch (error) {
       console.error('Error downloading invoice:', error);
-      alert('Failed to download invoice');
+      alert('Failed to download invoice: Unknown error');
     }
   };
 
