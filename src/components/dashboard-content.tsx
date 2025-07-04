@@ -285,10 +285,12 @@ export function DashboardContent() {
         const result = await response.json();
         console.log('✅ Upload successful:', result);
 
-        // Reset file input
-        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-        if (fileInput) {
-          fileInput.value = '';
+        // Reset file input (client-side only)
+        if (typeof window !== 'undefined') {
+          const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+          if (fileInput) {
+            fileInput.value = '';
+          }
         }
 
         // Automatically redirect to envelope preparation
@@ -427,7 +429,11 @@ export function DashboardContent() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => document.getElementById('file-upload')?.click()}
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    document.getElementById('file-upload')?.click();
+                  }
+                }}
                 className="w-full border-blue-300 text-blue-600 hover:bg-blue-50"
               >
                 Start Now
