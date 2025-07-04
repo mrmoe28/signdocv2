@@ -1,33 +1,100 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FileText, Upload, PenTool, ArrowRight } from 'lucide-react';
 
-export default function RootPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redirect to dashboard page
-    router.push('/dashboard');
-  }, [router]);
-
+export default function HomePage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">JI</span>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-8 w-8 text-blue-600" />
+              <span className="text-2xl font-bold text-gray-900">Sign Docs</span>
+            </div>
+            <Link href="/documents">
+              <Button>
+                Go to Documents
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </div>
-          <span className="font-bold text-2xl text-gray-900">JOB INVOICER</span>
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">
-          Welcome to Job Invoicer
-        </h1>
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
-          <p className="text-gray-600 ml-3">Loading dashboard...</p>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Document Signing Made Simple
+          </h1>
+          <p className="text-xl text-gray-600 mb-8">
+            Upload, sign, and manage your PDF documents with ease
+          </p>
+          <Link href="/documents">
+            <Button size="lg" className="mb-8">
+              Start Signing Documents
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
         </div>
-      </div>
+
+        {/* Quick Features */}
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <Card>
+            <CardHeader className="text-center">
+              <Upload className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+              <CardTitle>Upload PDFs</CardTitle>
+              <CardDescription>
+                Drag and drop your PDF files for instant upload
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader className="text-center">
+              <PenTool className="h-12 w-12 text-green-600 mx-auto mb-4" />
+              <CardTitle>Add Signatures</CardTitle>
+              <CardDescription>
+                Draw or place signatures directly on your documents
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card>
+            <CardHeader className="text-center">
+              <FileText className="h-12 w-12 text-purple-600 mx-auto mb-4" />
+              <CardTitle>Manage Documents</CardTitle>
+              <CardDescription>
+                Organize and track all your signed documents
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+
+        {/* Quick Access */}
+        <div className="mt-16 text-center">
+          <Card className="max-w-md mx-auto">
+            <CardHeader>
+              <CardTitle>Ready to get started?</CardTitle>
+              <CardDescription>
+                Access your document management dashboard
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/documents">
+                <Button className="w-full" size="lg">
+                  Open Documents Dashboard
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
     </div>
   );
 }

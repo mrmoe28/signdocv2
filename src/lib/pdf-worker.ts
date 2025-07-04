@@ -1,80 +1,49 @@
-// PDF.js Worker configuration
+// PDF.js worker configuration for modern browsers
+// This uses CDN-based workers to avoid build issues with Next.js 15
+
 import { pdfjs } from 'react-pdf';
 
-// Modern PDF.js worker configuration using CDN approach
-// This is the recommended approach for 2024+ based on current best practices
-if (typeof window !== 'undefined' && !pdfjs.GlobalWorkerOptions.workerSrc) {
-  // Use CDN-based worker URL for better reliability and performance
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-}
+// Export configuration for use in components
+export const pdfConfig = {
+  workerSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+  version: '3.11.174'
+};
 
-// Polyfill for Promise.withResolvers if not available (React 18+ compatibility)
-if (typeof Promise.withResolvers === 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (Promise as any).withResolvers = function () {
-    let resolve: (value: unknown) => void;
-    let reject: (reason?: unknown) => void;
-    const promise = new Promise<unknown>((res, rej) => {
-      resolve = res;
-      reject = rej;
+// Configure PDF.js worker for better performance
+export function configurePdfJs() {
+  // Only configure once
+  if (pdfjs.GlobalWorkerOptions.workerSrc) {
+    console.log('✅ PDF.js already configured:', pdfjs.GlobalWorkerOptions.workerSrc);
+    return;
+  }
+
+  try {
+    // Use CDN worker for better performance and reliability
+    pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+
+    // Configure additional options for better performance
+    pdfjs.GlobalWorkerOptions.workerPort = null;
+
+    console.log('✅ PDF.js worker configured:', {
+      version: pdfjs.version,
+      workerSrc: pdfjs.GlobalWorkerOptions.workerSrc
     });
-    return { promise, resolve: resolve!, reject: reject! };
-  };
+  } catch (error) {
+    console.error('❌ Failed to configure PDF.js worker:', error);
+
+    // Fallback configuration
+    try {
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+      console.log('✅ PDF.js fallback worker configured');
+    } catch (fallbackError) {
+      console.error('❌ PDF.js fallback configuration failed:', fallbackError);
+    }
+  }
 }
 
-// PDF.js configuration options for optimal performance
-const PDF_CONFIG = {
-  standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/',
-  cMapUrl: 'https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/',
-  cMapPacked: true,
-  maxImageSize: 1024 * 1024, // 1MB limit for images
-  verbosity: 0, // Reduce console noise in production
-} as const;
+// Initialize PDF.js if in browser environment
+if (typeof window !== 'undefined') {
+  configurePdfJs();
+}
 
-// Apply configuration
-Object.assign(pdfjs.GlobalWorkerOptions, PDF_CONFIG);
-
-// Export configured pdfjs for use in components
-export { pdfjs };
-
-// Export helper functions for PDF operations
-export const loadPDF = async (url: string) => {
-  try {
-    return await pdfjs.getDocument({
-      url,
-      ...PDF_CONFIG,
-    }).promise;
-  } catch (error) {
-    console.error('Failed to load PDF:', error);
-    throw new Error('Unable to load PDF document');
-  }
-};
-
-export const renderPDFPage = async (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  page: any,
-  canvas: HTMLCanvasElement,
-  scale: number = 1.5
-) => {
-  try {
-    const viewport = page.getViewport({ scale });
-    const context = canvas.getContext('2d');
-
-    if (!context) {
-      throw new Error('Canvas context not available');
-    }
-
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-
-    const renderContext = {
-      canvasContext: context,
-      viewport: viewport,
-    };
-
-    await page.render(renderContext).promise;
-  } catch (error) {
-    console.error('Failed to render PDF page:', error);
-    throw new Error('Unable to render PDF page');
-  }
-};
+export default pdfConfig;

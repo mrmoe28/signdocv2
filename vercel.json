@@ -1,11 +1,20 @@
 {
+    "version": 2,
     "framework": "nextjs",
     "regions": [
         "iad1"
     ],
     "functions": {
-        "src/app/api/**/*.ts": {
+        "src/app/api/*/route.ts": {
             "maxDuration": 30
         }
+    },
+    "env": {
+        "NEXT_PUBLIC_STACK_PROJECT_ID": "@next_public_stack_project_id",
+        "NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY": "@next_public_stack_publishable_client_key",
+        "STACK_SECRET_SERVER_KEY": "@stack_secret_server_key",
+        "DATABASE_URL": "@database_url",
+        "JWT_SECRET": "@jwt_secret",
+        "NEXT_PUBLIC_BASE_URL": "@next_public_base_url"
     }
 }

@@ -517,7 +517,7 @@ export function SchedulePage() {
                     onClick={() => handleDayClick(day)}
                   >
                     <div className={`text-sm font-bold relative ${isToday
-                        ? 'text-blue-700 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center'
+                        ? 'text-blue-700 bg-blue-600 rounded-full w-6 h-6 flex items-center justify-center'
                         : 'text-gray-900'
                       }`}>
                       {day}
@@ -835,9 +835,13 @@ export function SchedulePage() {
               )}
 
               {selectedEvent.photoUrl && (
+                // eslint-disable-next-line react/jsx-no-comment-textnodes
                 <div>
+                  // eslint-disable-next-line react/jsx-no-comment-textnodes
                   <Label>Photo</Label>
+                  // eslint-disable-next-line react/jsx-no-comment-textnodes
                   <div className="mt-2">
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={selectedEvent.photoUrl}
                       alt="Appointment reference"

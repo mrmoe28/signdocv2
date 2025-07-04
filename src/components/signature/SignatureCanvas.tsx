@@ -1,17 +1,28 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
-import { X, Pen, Trash2, Check } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Trash2, RotateCcw, Check } from 'lucide-react';
 
 interface SignatureCanvasProps {
-  onSave: (signature: string) => void;
-  onClose: () => void;
+  onSignature: (signatureData: string) => void;
+  onClear?: () => void;
+  width?: number;
+  height?: number;
+  className?: string;
 }
 
-export default function SignatureCanvas({ onSave, onClose }: SignatureCanvasProps) {
+export default function SignatureCanvas({
+  onSignature,
+  onClear,
+  width = 400,
+  height = 200,
+  className = ''
+}: SignatureCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [isEmpty, setIsEmpty] = useState(true);
+  const [hasSignature, setHasSignature] = useState(false);
+  const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -20,116 +31,138 @@ export default function SignatureCanvas({ onSave, onClose }: SignatureCanvasProp
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
-    canvas.width = 500;
-    canvas.height = 200;
-
-    // Set drawing styles
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
+    // Set up canvas
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000000';
 
-    // Clear canvas with white background
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }, []);
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Set canvas size
+    canvas.width = width;
+    canvas.height = height;
+
+    // Set white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+  }, [width, height]);
+
+  const getPointerPos = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) return { x: 0, y: 0 };
 
     const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
 
-    setIsDrawing(true);
-    setIsEmpty(false);
-
-    ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
+  const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    setIsDrawing(true);
+    const point = getPointerPos(e);
+    setLastPoint(point);
 
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const ctx = canvas?.getContext('2d');
+    if (ctx) {
+      ctx.beginPath();
+      ctx.moveTo(point.x, point.y);
+    }
+  };
 
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext('2d');
+  const draw = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !lastPoint) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
     if (!ctx) return;
 
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    const currentPoint = getPointerPos(e);
+
+    ctx.lineTo(currentPoint.x, currentPoint.y);
     ctx.stroke();
+
+    setLastPoint(currentPoint);
+    setHasSignature(true);
   };
 
   const stopDrawing = () => {
     setIsDrawing(false);
+    setLastPoint(null);
   };
+
   const clearCanvas = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas?.getContext('2d');
     if (!ctx) return;
 
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    setIsEmpty(true);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    setHasSignature(false);
+    onClear?.();
   };
 
   const saveSignature = () => {
     const canvas = canvasRef.current;
-    if (!canvas || isEmpty) return;
+    if (!canvas || !hasSignature) return;
 
-    const dataUrl = canvas.toDataURL('image/png');
-    onSave(dataUrl);
+    // Convert canvas to base64 data URL
+    const signatureData = canvas.toDataURL('image/png');
+    onSignature(signatureData);
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Pen className="h-6 w-6" />
-            Draw Your Signature
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="border-2 border-gray-300 rounded-lg mb-4">
-          <canvas
-            ref={canvasRef}
-            className="cursor-crosshair w-full"
-            onMouseDown={startDrawing}
-            onMouseMove={draw}
-            onMouseUp={stopDrawing}
-            onMouseLeave={stopDrawing}
-          />
-        </div>
+    <div className={`flex flex-col items-center gap-4 ${className}`}>
+      <div className="border-2 border-gray-300 rounded-lg p-4 bg-white">
+        <canvas
+          ref={canvasRef}
+          className="border border-gray-200 rounded cursor-crosshair touch-none"
+          style={{ width: width, height: height }}
+          onPointerDown={startDrawing}
+          onPointerMove={draw}
+          onPointerUp={stopDrawing}
+          onPointerLeave={stopDrawing}
+        />
+        <p className="text-sm text-gray-500 mt-2 text-center">
+          Draw your signature above
+        </p>
+      </div>
 
-        <div className="flex justify-between">
-          <button
-            onClick={clearCanvas}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-          >
-            <Trash2 className="h-4 w-4" />
-            Clear
-          </button>
-          
-          <button
-            onClick={saveSignature}
-            disabled={isEmpty}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Check className="h-4 w-4" />
-            Save Signature
-          </button>
-        </div>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={clearCanvas}
+          disabled={!hasSignature}
+          className="flex items-center gap-2"
+        >
+          <Trash2 size={16} />
+          Clear
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={clearCanvas}
+          disabled={!hasSignature}
+          className="flex items-center gap-2"
+        >
+          <RotateCcw size={16} />
+          Retry
+        </Button>
+
+        <Button
+          size="sm"
+          onClick={saveSignature}
+          disabled={!hasSignature}
+          className="flex items-center gap-2"
+        >
+          <Check size={16} />
+          Save Signature
+        </Button>
       </div>
     </div>
   );

@@ -2,19 +2,12 @@
 
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
-import { Upload, FileText, Plus, Eye, PenTool, Download, Trash2 } from 'lucide-react';
-import SignatureCanvas from '@/components/signature/SignatureCanvas';
-import AddSignersModal from '@/components/signature/AddSignersModal';
+import { Upload, FileText, Eye, PenTool, Download, Trash2, Send, X } from 'lucide-react';
 
 // Dynamically import PDF components to avoid SSR issues
 const SignaturePlacement = dynamic(() => import('@/components/signature/SignaturePlacement'), {
   ssr: false,
-  loading: () => <div className="p-8 text-center">Loading...</div>
-});
-
-const ModernPDFViewer = dynamic(() => import('@/components/pdf/ModernPDFViewer'), {
-  ssr: false,
-  loading: () => <div className="p-8 text-center">Loading document viewer...</div>
+  loading: () => <div className="p-8 text-center">Loading signature placement...</div>
 });
 
 interface Document {
@@ -24,24 +17,41 @@ interface Document {
   uploadedBy: string;
   uploadedAt: string;
   status: string;
+  senderEmail?: string;
+  recipientEmail?: string;
+  sentAt?: string;
   signers: unknown[];
+}
+
+interface SendDocumentData {
+  senderEmail: string;
+  senderName: string;
+  recipientEmail: string;
+  recipientName: string;
+  message: string;
 }
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [showSignature, setShowSignature] = useState(false);
-  const [showPlacement, setShowPlacement] = useState(false);
   const [showViewer, setShowViewer] = useState(false);
-  const [showAddSigners, setShowAddSigners] = useState(false);
-  const [currentSignature, setCurrentSignature] = useState<string>('');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; document: Document | null }>({
     show: false,
     document: null
   });
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [savedSignatures, setSavedSignatures] = useState<Set<string>>(new Set());
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [sendDocumentData, setSendDocumentData] = useState<SendDocumentData>({
+    senderEmail: '',
+    senderName: '',
+    recipientEmail: '',
+    recipientName: '',
+    message: ''
+  });
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -59,29 +69,63 @@ export default function DocumentsPage() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
+    if (file) {
+      // Validate file type first
+      if (file.type !== 'application/pdf') {
+        alert('Please select a PDF file');
+        return;
+      }
+
+      // Check file size (optional - set reasonable limit)
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        alert('File size must be less than 50MB');
+        return;
+      }
+
       setSelectedFile(file);
+      console.log('📁 File selected:', { name: file.name, size: file.size, type: file.type });
       await uploadFile(file);
     }
   };
 
   const uploadFile = async (file: File) => {
     setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
+    const startTime = Date.now();
 
     try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      console.log('🚀 Starting upload:', { name: file.name, size: file.size });
+
       const response = await fetch('/api/documents', {
         method: 'POST',
         body: formData,
       });
 
+      const uploadTime = Date.now() - startTime;
+      console.log('⏱️ Upload completed in:', uploadTime + 'ms');
+
       if (response.ok) {
-        await fetchDocuments();
+        const result = await response.json();
+        console.log('✅ Upload successful:', result);
+        await fetchDocuments(); // Refresh the list
         setSelectedFile(null);
+
+        // Reset file input
+        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+        if (fileInput) {
+          fileInput.value = '';
+        }
+      } else {
+        const error = await response.json();
+        console.error('❌ Upload failed:', error);
+        alert(`Upload failed: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error('❌ Upload error:', error);
+      alert('Upload failed: Network error');
     } finally {
       setUploading(false);
     }
@@ -106,6 +150,43 @@ export default function DocumentsPage() {
       setDeleting(null);
     }
   };
+
+  const handleSendDocument = async () => {
+    if (!selectedDocument) return;
+
+    setSending(true);
+    try {
+      const response = await fetch(`/api/documents/${selectedDocument.id}/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sendDocumentData),
+      });
+
+      if (response.ok) {
+        alert('Document sent successfully to both sender and recipient!');
+        setShowSendModal(false);
+        setSendDocumentData({
+          senderEmail: '',
+          senderName: '',
+          recipientEmail: '',
+          recipientName: '',
+          message: ''
+        });
+        await fetchDocuments(); // Refresh documents to show updated status
+      } else {
+        const error = await response.json();
+        alert(`Failed to send document: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending document:', error);
+      alert('Failed to send document. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-8">Document Signing</h1>
@@ -164,48 +245,41 @@ export default function DocumentsPage() {
                   >
                     <Eye className="h-5 w-5 text-gray-500" />
                   </button>
+                  <button
+                    onClick={() => {
+                      setSelectedDocument(doc);
+                      setShowSendModal(true);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded"
+                    title="Send Document"
+                  >
+                    <Send className="h-5 w-5 text-blue-500" />
+                  </button>
                   {doc.status === 'draft' && (
                     <button
                       onClick={() => {
                         setSelectedDocument(doc);
-                        setShowSignature(true);
+                        setShowViewer(true);
                       }}
                       className="p-2 hover:bg-gray-100 rounded"
-                      title="Sign Document"
+                      title="Add Signatures"
                     >
-                      <PenTool className="h-5 w-5 text-blue-500" />
-                    </button>
-                  )}
-                  {doc.status === 'completed' && (
-                    <button
-                      onClick={() => {
-                        window.open(`/api/documents/${doc.id}/download`, '_blank');
-                      }}
-                      className="p-2 hover:bg-gray-100 rounded"
-                      title="Download Signed PDF"
-                    >
-                      <Download className="h-5 w-5 text-green-500" />
+                      <PenTool className="h-5 w-5 text-green-500" />
                     </button>
                   )}
                   <button
-                    onClick={() => {
-                      setSelectedDocument(doc);
-                      setShowAddSigners(true);
-                    }}
+                    onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
                     className="p-2 hover:bg-gray-100 rounded"
-                    title="Add Signers"
+                    title="Download PDF"
                   >
-                    <Plus className="h-5 w-5 text-gray-500" />
+                    <Download className="h-5 w-5 text-purple-500" />
                   </button>
                   <button
-                    onClick={() => {
-                      setDeleteConfirm({ show: true, document: doc });
-                    }}
-                    className="p-2 hover:bg-red-100 rounded"
+                    onClick={() => setDeleteConfirm({ show: true, document: doc })}
+                    className="p-2 hover:bg-gray-100 rounded"
                     title="Delete Document"
-                    disabled={deleting === doc.id}
                   >
-                    <Trash2 className={`h-5 w-5 ${deleting === doc.id ? 'text-gray-400' : 'text-red-500'}`} />
+                    <Trash2 className="h-5 w-5 text-red-500" />
                   </button>
                 </div>
               </div>
@@ -213,117 +287,218 @@ export default function DocumentsPage() {
           </div>
         )}
       </div>
-      {/* Signature Canvas Modal */}
-      {showSignature && (
-        <SignatureCanvas
-          onSave={(signature) => {
-            setCurrentSignature(signature);
-            setShowSignature(false);
-            setShowPlacement(true);
-          }}
-          onClose={() => {
-            setShowSignature(false);
-            setSelectedDocument(null);
-          }}
-        />
-      )}
 
-      {/* Signature Placement Modal */}
-      {showPlacement && selectedDocument && (
-        <SignaturePlacement
-          documentName={selectedDocument.name}
-          documentUrl={selectedDocument.fileUrl}
-          signatureData={currentSignature}
-          onConfirm={async (position) => {
-            try {
-              // Save signature to document
-              const response = await fetch(`/api/documents/${selectedDocument.id}/signatures`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  signatureData: currentSignature,
-                  position,
-                  signerName: 'Test User',
-                  signerEmail: 'user@example.com'
-                }),
-              });
-
-              if (response.ok) {
-                const data = await response.json();
-                alert(data.documentCompleted
-                  ? 'Document signing completed!'
-                  : 'Signature placed successfully!');
-              } else {
-                alert('Failed to save signature');
-              }
-            } catch (error) {
-              console.error('Error saving signature:', error);
-              alert('Failed to save signature');
-            }
-
-            setShowPlacement(false);
-            setSelectedDocument(null);
-            setCurrentSignature('');
-            // Refresh documents
-            fetchDocuments();
-          }}
-          onCancel={() => {
-            setShowPlacement(false);
-            setShowSignature(true);
-          }}
-        />
-      )}
-
-      {/* Document Viewer Modal */}
+      {/* Document Viewer Modal with Enhanced Signature Functionality */}
       {showViewer && selectedDocument && (
-        <ModernPDFViewer
-          document={selectedDocument}
-          onClose={() => {
-            setShowViewer(false);
-            setSelectedDocument(null);
-          }}
-        />
-      )}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full h-full max-h-[90vh] overflow-auto">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h2 className="text-lg font-semibold">PDF Viewer - {selectedDocument.name}</h2>
+              <button
+                onClick={() => {
+                  setShowViewer(false);
+                  setSelectedDocument(null);
+                  setSavedSignatures(new Set()); // Reset saved signatures
+                }}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4">
+              <SignaturePlacement
+                fileUrl={selectedDocument.fileUrl}
+                onSignatureUpdate={async (signatures) => {
+                  // Save any new fields to database
+                  for (const signature of signatures) {
+                    // Skip if already saved
+                    if (savedSignatures.has(signature.id)) continue;
 
-      {/* Add Signers Modal */}
-      {showAddSigners && selectedDocument && (
-        <AddSignersModal
-          documentId={selectedDocument.id}
-          documentName={selectedDocument.name}
-          onClose={() => {
-            setShowAddSigners(false);
-            setSelectedDocument(null);
-          }}
-          onSuccess={() => {
-            fetchDocuments();
-          }}
-        />
+                    // Check if field has required data
+                    const hasRequiredData = signature.type === 'signature'
+                      ? signature.signatureData
+                      : signature.textValue !== undefined;
+
+                    if (hasRequiredData) {
+                      try {
+                        const response = await fetch('/api/signatures', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            documentId: selectedDocument.id,
+                            signerName: 'Current User',
+                            signerEmail: 'user@example.com',
+                            fieldType: signature.type,
+                            signatureData: signature.signatureData || null,
+                            textValue: signature.textValue || null,
+                            fontFamily: signature.fontFamily || 'Arial',
+                            fontSize: signature.fontSize || 14,
+                            positionX: signature.x,
+                            positionY: signature.y,
+                            width: signature.width,
+                            height: signature.height,
+                            pageNumber: signature.pageNumber
+                          })
+                        });
+
+                        if (response.ok) {
+                          setSavedSignatures(prev => new Set(prev).add(signature.id));
+                          console.log(`✅ ${signature.type} field saved successfully`);
+                        } else {
+                          console.error('❌ Failed to save field:', await response.text());
+                        }
+                      } catch (error) {
+                        console.error('❌ Failed to save field:', error);
+                      }
+                    }
+                  }
+                }}
+                readOnly={false}
+                existingSignatures={[]}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
-      {deleteConfirm.show && deleteConfirm.document && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Confirm Delete</h3>
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Delete Document</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete &ldquo;{deleteConfirm.document.name}&rdquo;? This action cannot be undone.
+              Are you sure you want to delete &quot;{deleteConfirm.document?.name}&quot;? This action cannot be undone.
             </p>
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setDeleteConfirm({ show: false, document: null })}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-                disabled={deleting === deleteConfirm.document.id}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                disabled={deleting !== null}
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleDeleteDocument(deleteConfirm.document!.id)}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                disabled={deleting === deleteConfirm.document.id}
+                onClick={() => deleteConfirm.document && handleDeleteDocument(deleteConfirm.document.id)}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                disabled={deleting !== null}
               >
-                {deleting === deleteConfirm.document.id ? 'Deleting...' : 'Delete'}
+                {deleting === deleteConfirm.document?.id ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Document Modal */}
+      {showSendModal && selectedDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Send Document</h3>
+              <button
+                onClick={() => setShowSendModal(false)}
+                className="p-2 hover:bg-gray-100 rounded"
+                disabled={sending}
+                title="Close modal"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Send &quot;{selectedDocument.name}&quot; to both sender and recipient via email.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sender Name
+                  </label>
+                  <input
+                    type="text"
+                    value={sendDocumentData.senderName}
+                    onChange={(e) => setSendDocumentData({ ...sendDocumentData, senderName: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Your name"
+                    disabled={sending}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sender Email
+                  </label>
+                  <input
+                    type="email"
+                    value={sendDocumentData.senderEmail}
+                    onChange={(e) => setSendDocumentData({ ...sendDocumentData, senderEmail: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="your.email@example.com"
+                    disabled={sending}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Recipient Name
+                  </label>
+                  <input
+                    type="text"
+                    value={sendDocumentData.recipientName}
+                    onChange={(e) => setSendDocumentData({ ...sendDocumentData, recipientName: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Recipient name"
+                    disabled={sending}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Recipient Email
+                  </label>
+                  <input
+                    type="email"
+                    value={sendDocumentData.recipientEmail}
+                    onChange={(e) => setSendDocumentData({ ...sendDocumentData, recipientEmail: e.target.value })}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="recipient@example.com"
+                    disabled={sending}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Message (Optional)
+                </label>
+                <textarea
+                  value={sendDocumentData.message}
+                  onChange={(e) => setSendDocumentData({ ...sendDocumentData, message: e.target.value })}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Add a personal message..."
+                  rows={3}
+                  disabled={sending}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-4 mt-6">
+              <button
+                onClick={() => setShowSendModal(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                disabled={sending}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendDocument}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                disabled={sending || !sendDocumentData.senderEmail || !sendDocumentData.senderName || !sendDocumentData.recipientEmail || !sendDocumentData.recipientName}
+              >
+                {sending ? 'Sending...' : 'Send Document'}
               </button>
             </div>
           </div>

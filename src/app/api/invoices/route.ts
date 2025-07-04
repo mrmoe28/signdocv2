@@ -1,78 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '@/lib/auth';
-
-const prisma = new PrismaClient();
-
-// Helper function to get authenticated user or default admin
-async function getAuthenticatedUser(req: NextRequest) {
-  const token = req.cookies.get('auth-token')?.value;
-  
-  let userId = null;
-  
-  // Try to get user from token first
-  if (token) {
-    const decoded = verifyToken(token);
-    if (decoded) {
-      // Verify the user actually exists
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId }
-      });
-      if (user) {
-        userId = user.id;
-      }
-    }
-  }
-  
-  // If no valid token/user, use the default admin user
-  if (!userId) {
-    const defaultUser = await prisma.user.findFirst({
-      where: { email: 'admin@ekosolar.com' }
-    });
-    
-    if (!defaultUser) {
-      throw new Error('No default admin user found. Please set up the admin user first.');
-    }
-    
-    userId = defaultUser.id;
-  }
-  
-  return userId;
-}
+import { getAuthenticatedUser } from '@/lib/stack-auth-helpers';
+import { drizzleDb as db } from '@/lib/db';
+import { invoices, customers } from '@/lib/schema';
+import { nanoid } from 'nanoid';
+import { eq, desc, and, or, ilike } from 'drizzle-orm';
 
 // GET /api/invoices - Get all invoices with filtering
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getAuthenticatedUser(request);
+    // Get authenticated user from Stack Auth
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const search = searchParams.get('search');
 
     // Build where clause
-    const where = {
-      userId: userId,
-      ...(status && status !== 'All' && { status }),
-      ...(search && {
-        OR: [
-          { invoiceId: { contains: search, mode: 'insensitive' } },
-          { customerName: { contains: search, mode: 'insensitive' } }
-        ]
-      })
-    };
+    const whereConditions = [eq(invoices.userId, user.id)];
 
-    const invoices = await prisma.invoice.findMany({
-      where,
-      include: {
-        customer: true
-      },
-      orderBy: {
-        createdAt: 'desc'
+    if (status && status !== 'All') {
+      whereConditions.push(eq(invoices.status, status));
+    }
+
+    if (search) {
+      const searchCondition = or(
+        ilike(invoices.number, `%${search}%`),
+        ilike(invoices.description, `%${search}%`)
+      );
+      if (searchCondition) {
+        whereConditions.push(searchCondition);
       }
-    });
+    }
+
+    const whereClause = whereConditions.length > 1 ? and(...whereConditions) : whereConditions[0];
+
+    const invoicesList = await db
+      .select({
+        id: invoices.id,
+        number: invoices.number,
+        customerId: invoices.customerId,
+        userId: invoices.userId,
+        amount: invoices.amount,
+        tax: invoices.tax,
+        total: invoices.total,
+        status: invoices.status,
+        dueDate: invoices.dueDate,
+        paidDate: invoices.paidDate,
+        description: invoices.description,
+        items: invoices.items,
+        createdAt: invoices.createdAt,
+        updatedAt: invoices.updatedAt,
+        customer: {
+          id: customers.id,
+          name: customers.name,
+          email: customers.email,
+          phone: customers.phone,
+          company: customers.company
+        }
+      })
+      .from(invoices)
+      .leftJoin(customers, eq(invoices.customerId, customers.id))
+      .where(whereClause)
+      .orderBy(desc(invoices.createdAt));
 
     return NextResponse.json({
-      invoices,
-      total: invoices.length
+      invoices: invoicesList,
+      total: invoicesList.length
     });
 
   } catch (error) {
@@ -81,100 +78,102 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to fetch invoices' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 // POST /api/invoices - Create new invoice
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getAuthenticatedUser(request);
+    // Get authenticated user from Stack Auth
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const data = await request.json();
 
     // Extract data from request
     const {
       customerId,
-      customerName,
       invoiceNumber,
       description,
+      amount,
+      tax = 0,
       total,
-      status = 'Draft'
+      status = 'draft',
+      dueDate,
+      items
     } = data;
 
     // Validation
-    if (!customerId && !customerName) {
+    if (!customerId || !invoiceNumber) {
       return NextResponse.json(
-        { error: 'Customer ID or customer name is required' },
+        { error: 'Customer ID and invoice number are required' },
         { status: 400 }
       );
     }
 
-    if (!invoiceNumber) {
+    // Verify customer exists and belongs to user
+    const customer = await db
+      .select()
+      .from(customers)
+      .where(and(
+        eq(customers.id, customerId),
+        eq(customers.userId, user.id)
+      ))
+      .limit(1);
+
+    if (customer.length === 0) {
       return NextResponse.json(
-        { error: 'Invoice number is required' },
-        { status: 400 }
+        { error: 'Customer not found or access denied' },
+        { status: 404 }
       );
-    }
-
-    // If customerId is provided, verify customer exists and belongs to user
-    let customer = null;
-    if (customerId) {
-      customer = await prisma.customer.findFirst({
-        where: {
-          id: customerId,
-          userId: userId
-        }
-      });
-
-      if (!customer) {
-        return NextResponse.json(
-          { error: 'Customer not found or access denied' },
-          { status: 404 }
-        );
-      }
     }
 
     // Create new invoice
-    const newInvoice = await prisma.invoice.create({
-      data: {
-        invoiceId: invoiceNumber,
-        customerName: customer ? customer.name : customerName,
-        amount: total || 0,
-        description: description || '',
-        status: status,
-        userId: userId,
-        customerId: customer ? customer.id : null
-      },
-      include: {
-        customer: true,
-        user: true
-      }
-    });
+    const newInvoice = {
+      id: nanoid(),
+      number: invoiceNumber,
+      customerId,
+      userId: user.id,
+      amount: amount || 0,
+      tax,
+      total: total || amount || 0,
+      status,
+      dueDate: dueDate ? new Date(dueDate) : new Date(),
+      description: description || '',
+      items: items || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const [invoice] = await db
+      .insert(invoices)
+      .values(newInvoice)
+      .returning();
 
     return NextResponse.json({
       success: true,
       message: 'Invoice created successfully',
-      invoice: newInvoice
+      invoice
     }, { status: 201 });
 
   } catch (error) {
     console.error('Error creating invoice:', error);
-    
+
     if (error instanceof Error) {
-      if (error.message.includes('Unique constraint')) {
+      if (error.message.includes('unique constraint')) {
         return NextResponse.json(
           { error: 'An invoice with this number already exists' },
           { status: 409 }
         );
       }
     }
-    
+
     return NextResponse.json(
       { error: 'Failed to create invoice' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 } 

@@ -1,58 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-
-// Helper function to get authenticated user
-async function getAuthenticatedUser() {
-  try {
-    // For now, we'll use the admin user as fallback
-    // In a real app, you'd get this from the session/token
-    const adminUser = await prisma.user.findFirst({
-      where: { email: 'admin@ekosolar.com' }
-    });
-    
-    if (!adminUser) {
-      throw new Error('Admin user not found');
-    }
-    
-    return adminUser;
-  } catch (error) {
-    console.error('Error getting authenticated user:', error);
-    throw error;
-  }
-}
+import { getAuthenticatedUser } from '@/lib/stack-auth-helpers';
+import { drizzleDb as db } from '@/lib/db';
+import { leads } from '@/lib/schema';
+import { nanoid } from 'nanoid';
+import { eq, desc } from 'drizzle-orm';
 
 // GET /api/leads - Get all leads
 export async function GET() {
   try {
+    // Get authenticated user from Stack Auth
     const user = await getAuthenticatedUser();
-    
-    const leads = await prisma.lead.findMany({
-      where: {
-        userId: user.id
-      },
-      orderBy: {
-        createdDate: 'desc'
-      }
-    });
 
-    return NextResponse.json({ leads });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const leadsList = await db
+      .select()
+      .from(leads)
+      .where(eq(leads.userId, user.id))
+      .orderBy(desc(leads.createdAt));
+
+    return NextResponse.json({ leads: leadsList });
   } catch (error) {
     console.error('Error fetching leads:', error);
     return NextResponse.json(
       { error: 'Failed to fetch leads' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 // POST /api/leads - Create a new lead
 export async function POST(request: NextRequest) {
   try {
+    // Get authenticated user from Stack Auth
     const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
 
     // Validate required fields
@@ -73,43 +61,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if lead with this email already exists
-    const existingLead = await prisma.lead.findFirst({
-      where: {
-        email: body.email.toLowerCase(),
-        userId: user.id
-      }
-    });
+    const existingLead = await db
+      .select()
+      .from(leads)
+      .where(eq(leads.email, body.email.toLowerCase()))
+      .limit(1);
 
-    if (existingLead) {
+    if (existingLead.length > 0) {
       return NextResponse.json(
         { error: 'A lead with this email already exists' },
         { status: 409 }
       );
     }
 
-    const lead = await prisma.lead.create({
-      data: {
-        name: body.name.trim(),
-        email: body.email.toLowerCase().trim(),
-        phone: body.phone?.trim() || null,
-        company: body.company?.trim() || null,
-        location: body.location?.trim() || null,
-        source: body.source || 'Website',
-        status: body.status || 'New',
-        score: body.score || 0,
-        estimatedValue: body.estimatedValue || 0,
-        probability: body.probability || 0,
-        assignedTo: body.assignedTo?.trim() || user.name,
-        createdDate: new Date().toISOString(),
-        lastContact: body.lastContact || null,
-        nextFollowUp: body.nextFollowUp || null,
-        notes: body.notes?.trim() || null,
-        tags: body.tags || [],
-        interests: body.interests || [],
-        priority: body.priority || 'Medium',
-        userId: user.id
-      }
-    });
+    // Create new lead
+    const newLead = {
+      id: nanoid(),
+      name: body.name.trim(),
+      email: body.email.toLowerCase().trim(),
+      phone: body.phone?.trim() || null,
+      company: body.company?.trim() || null,
+      source: body.source || null,
+      status: body.status || 'new',
+      notes: body.notes?.trim() || null,
+      userId: user.id,
+      customerId: body.customerId || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const [lead] = await db
+      .insert(leads)
+      .values(newLead)
+      .returning();
 
     return NextResponse.json(lead, { status: 201 });
   } catch (error) {
@@ -118,7 +102,5 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create lead' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 } 

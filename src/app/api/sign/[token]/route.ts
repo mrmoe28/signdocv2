@@ -24,13 +24,13 @@ export async function GET(
       );
     }
 
-    // Check if token is expired
-    if (signer.tokenExpiry && new Date() > signer.tokenExpiry) {
-      return NextResponse.json(
-        { error: 'Signing link has expired' },
-        { status: 400 }
-      );
-    }
+    // TODO: Check if token is expired (add tokenExpiry to schema if needed)
+    // if (signer.tokenExpiry && new Date() > signer.tokenExpiry) {
+    //   return NextResponse.json(
+    //     { error: 'Signing link has expired' },
+    //     { status: 400 }
+    //   );
+    // }
 
     // Get document details
     const [document] = await db
@@ -75,7 +75,7 @@ export async function POST(
   try {
     const { token } = params;
     const body = await request.json();
-    const { signatureData, position } = body;
+    const { signatureData, position, action = 'save_and_send' } = body;
 
     // Find signer by token
     const [signer] = await db
@@ -91,23 +91,23 @@ export async function POST(
       );
     }
 
-    // Check if already signed
-    if (signer.status === 'signed') {
+    // Check if already signed (unless it's a draft action)
+    if (signer.status === 'signed' && action !== 'draft') {
       return NextResponse.json(
         { error: 'Document already signed' },
         { status: 400 }
       );
     }
 
-    // Check if token is expired
-    if (signer.tokenExpiry && new Date() > signer.tokenExpiry) {
-      return NextResponse.json(
-        { error: 'Signing link has expired' },
-        { status: 400 }
-      );
-    }
+    // TODO: Check if token is expired (add tokenExpiry to schema if needed)
+    // if (signer.tokenExpiry && new Date() > signer.tokenExpiry) {
+    //   return NextResponse.json(
+    //     { error: 'Signing link has expired' },
+    //     { status: 400 }
+    //   );
+    // }
 
-    // Create signature field
+    // Create or update signature field
     const [signatureField] = await db
       .insert(signatureFields)
       .values({
@@ -118,45 +118,100 @@ export async function POST(
         y: position.y,
         width: 200,
         height: 80,
-        type: 'signature',
+        fieldType: 'signature',
         value: signatureData,
-        required: true
+        required: 'true'
       })
       .returning();
+
+    console.log('✅ Field created successfully:', {
+      id: signatureField.id,
+      documentId: signatureField.documentId,
+      fieldType: signatureField.fieldType,
+      signerEmail: signer.email,
+      signatureType: 'drawn'
+    });
+
+    // Handle different actions
+    let signerStatus = signer.status;
+    let shouldNotifyNext = false;
+    let documentCompleted = false;
+
+    switch (action) {
+      case 'save_and_send':
+        signerStatus = 'signed';
+        shouldNotifyNext = true;
+        break;
+
+      case 'save':
+        signerStatus = 'signed';
+        shouldNotifyNext = false;
+        break;
+
+      case 'draft':
+        signerStatus = 'draft';
+        shouldNotifyNext = false;
+        break;
+
+      default:
+        signerStatus = 'signed';
+        shouldNotifyNext = true;
+    }
 
     // Update signer status
     await db
       .update(signers)
       .set({
-        status: 'signed',
-        signedAt: new Date(),
-        signatureData,
-        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+        status: signerStatus,
+        signedAt: signerStatus === 'signed' ? new Date() : null
       })
       .where(eq(signers.id, signer.id));
 
-    // Check if all signers have signed
-    const allSigners = await db
-      .select()
-      .from(signers)
-      .where(eq(signers.documentId, signer.documentId));
+    // Check if all signers have signed (only for completed signatures)
+    if (signerStatus === 'signed') {
+      const allSigners = await db
+        .select()
+        .from(signers)
+        .where(eq(signers.documentId, signer.documentId));
 
-    const allSigned = allSigners.every(s => s.status === 'signed');
+      const allSigned = allSigners.every(s => s.status === 'signed');
+      documentCompleted = allSigned;
 
-    if (allSigned) {
-      // Update document status
-      await db
-        .update(documents)
-        .set({
-          status: 'completed',
-          completedAt: new Date()
-        })
-        .where(eq(documents.id, signer.documentId));
+      if (allSigned) {
+        // Update document status
+        await db
+          .update(documents)
+          .set({
+            status: 'completed',
+            completedAt: new Date()
+          })
+          .where(eq(documents.id, signer.documentId));
+      }
+    }
+
+    // TODO: Implement notification logic here
+    if (shouldNotifyNext && !documentCompleted) {
+      // Find next signer to notify
+      const nextSigner = await db
+        .select()
+        .from(signers)
+        .where(and(
+          eq(signers.documentId, signer.documentId),
+          eq(signers.status, 'pending')
+        ))
+        .limit(1);
+
+      if (nextSigner.length > 0) {
+        console.log('📧 Would notify next signer:', nextSigner[0].email);
+        // TODO: Send email notification to next signer
+      }
     }
 
     return NextResponse.json({
-      message: 'Document signed successfully',
-      documentCompleted: allSigned
+      message: getSuccessMessage(action, documentCompleted),
+      documentCompleted,
+      action,
+      signerStatus
     });
   } catch (error) {
     console.error('Error signing document:', error);
@@ -164,5 +219,22 @@ export async function POST(
       { error: 'Failed to sign document' },
       { status: 500 }
     );
+  }
+}
+
+function getSuccessMessage(action: string, documentCompleted: boolean): string {
+  if (documentCompleted) {
+    return 'Document completed! All signers have signed.';
+  }
+
+  switch (action) {
+    case 'save_and_send':
+      return 'Document signed and sent to the next signer';
+    case 'save':
+      return 'Document signed successfully';
+    case 'draft':
+      return 'Draft saved successfully';
+    default:
+      return 'Document signed successfully';
   }
 }

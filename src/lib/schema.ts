@@ -1,139 +1,109 @@
-import { pgTable, text, timestamp, boolean, real, integer, uniqueIndex, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, real, jsonb } from 'drizzle-orm/pg-core';
 import { createId } from '@paralleldrive/cuid2';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   email: text('email').notNull().unique(),
-  password: text('password').notNull(),
   name: text('name'),
+  firstName: text('firstName'),
+  lastName: text('lastName'),
   company: text('company'),
   phone: text('phone'),
-  role: text('role').notNull().default('user'),
-  isVerified: boolean('is_verified').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  
-  // Password reset functionality
-  resetToken: text('reset_token'),
-  resetTokenExpiry: timestamp('reset_token_expiry'),
-  
-  // Profile data
-  firstName: text('first_name'),
-  lastName: text('last_name'),
   address: text('address'),
   city: text('city'),
   state: text('state'),
-  zipCode: text('zip_code'),
-});
-export const customers = pgTable('customers', {
-  id: text('id').primaryKey().$defaultFn(() => createId()),
-  email: text('email').notNull(),
-  name: text('name').notNull(),
-  phone: text('phone'),
-  company: text('company'),
-  address: text('address'),
-  contactPerson: text('contact_person'),
-  customerType: text('customer_type').notNull().default('residential'),
-  notifyByEmail: boolean('notify_by_email').notNull().default(true),
-  notifyBySmsText: boolean('notify_by_sms_text').notNull().default(true),
+  zipCode: text('zipCode'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  
-  // Foreign keys
+});
+
+export const customers = pgTable('customers', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  address: text('address'),
+  city: text('city'),
+  state: text('state'),
+  zipCode: text('zipCode'),
+  company: text('company'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 });
 
 export const invoices = pgTable('invoices', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
-  invoiceId: text('invoice_id').notNull().unique(),
-  customerName: text('customer_name').notNull(),
+  number: text('number').notNull().unique(),
+  customerId: text('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   amount: real('amount').notNull(),
+  tax: real('tax').notNull().default(0),
+  total: real('total').notNull(),
+  status: text('status').notNull().default('draft'),
+  dueDate: timestamp('due_date').notNull(),
+  paidDate: timestamp('paid_date'),
   description: text('description'),
-  status: text('status').notNull().default('Pending'),
+  items: jsonb('items'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  
-  // Foreign keys
-  userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
-  customerId: text('customer_id').references(() => customers.id, { onDelete: 'set null' }),
 });
+
+export const leads = pgTable('leads', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  company: text('company'),
+  source: text('source'),
+  status: text('status').notNull().default('new'),
+  notes: text('notes'),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  customerId: text('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const appointments = pgTable('appointments', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   title: text('title').notNull(),
-  customer: text('customer').notNull(),
-  customerEmail: text('customer_email'),
-  type: text('type').notNull().default('Installation'),
-  date: timestamp('date').notNull(),
-  time: text('time').notNull(),
-  duration: text('duration'),
+  description: text('description'),
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time').notNull(),
   location: text('location'),
-  status: text('status').notNull().default('Scheduled'),
-  priority: text('priority').notNull().default('Medium'),
-  notes: text('notes'),
-  estimatedValue: real('estimated_value'),
-  photoUrl: text('photo_url'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  
-  // Foreign keys
+  status: text('status').notNull().default('scheduled'),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   customerId: text('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
 export const payments = pgTable('payments', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
-  invoiceId: text('invoice_id'),
-  invoiceNumber: text('invoice_number'),
-  customerName: text('customer_name').notNull(),
+  invoiceId: text('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   amount: real('amount').notNull(),
-  status: text('status').notNull().default('Pending'),
-  paymentDate: timestamp('payment_date'),
-  paymentMethod: text('payment_method'),
-  stripePaymentId: text('stripe_payment_id'),
+  method: text('method').notNull().default('cash'),
+  status: text('status').notNull().default('pending'),
+  stripeId: text('stripe_id'),
   description: text('description'),
+  paidAt: timestamp('paid_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  
-  // Foreign keys
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  customerId: text('customer_id').references(() => customers.id, { onDelete: 'set null' }),
-});
-export const leads = pgTable('leads', {
-  id: text('id').primaryKey().$defaultFn(() => createId()),
-  name: text('name').notNull(),
-  email: text('email').notNull(),
-  phone: text('phone'),
-  company: text('company'),
-  location: text('location'),
-  source: text('source').notNull().default('Website'),
-  status: text('status').notNull().default('New'),
-  score: integer('score').notNull().default(0),
-  estimatedValue: real('estimated_value').notNull().default(0),
-  probability: integer('probability').notNull().default(0),
-  assignedTo: text('assigned_to'),
-  createdDate: text('created_date').notNull(),
-  lastContact: text('last_contact'),
-  nextFollowUp: text('next_follow_up'),
-  notes: text('notes'),
-  tags: text('tags').notNull().default('[]'),
-  interests: text('interests').notNull().default('[]'),
-  priority: text('priority').notNull().default('Medium'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  
-  // Foreign keys
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 });
 
-// DocuSign Clone Tables
 export const documents = pgTable('documents', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   name: text('name').notNull(),
   fileUrl: text('file_url').notNull(),
   status: text('status').notNull().default('draft'),
   uploadedBy: text('uploaded_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  senderEmail: text('sender_email').notNull(),
+  recipientEmail: text('recipient_email'),
   uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
   completedAt: timestamp('completed_at'),
+  sentAt: timestamp('sent_at'),
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -144,13 +114,10 @@ export const signers = pgTable('signers', {
   documentId: text('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   email: text('email').notNull(),
-  order: integer('order').notNull().default(1),
+  emailToken: text('email_token').notNull().unique(),
   status: text('status').notNull().default('pending'),
+  order: real('order').notNull().default(1),
   signedAt: timestamp('signed_at'),
-  signatureData: text('signature_data'),
-  ipAddress: text('ip_address'),
-  emailToken: text('email_token').unique(),
-  tokenExpiry: timestamp('token_expiry'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -159,27 +126,49 @@ export const signatureFields = pgTable('signature_fields', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   documentId: text('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
   signerId: text('signer_id').notNull().references(() => signers.id, { onDelete: 'cascade' }),
-  page: integer('page').notNull(),
+  fieldType: text('field_type').notNull().default('signature'), // signature, text, date, initials
+  page: real('page').notNull().default(1),
   x: real('x').notNull(),
   y: real('y').notNull(),
-  width: real('width').notNull(),
-  height: real('height').notNull(),
-  type: text('type').notNull().default('signature'),
-  value: text('value'),
-  required: boolean('required').notNull().default(true),
+  width: real('width').notNull().default(150),
+  height: real('height').notNull().default(60),
+  value: text('value'), // signature data (base64) or text value
+  required: text('required').notNull().default('true'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export const auditLogs = pgTable('audit_logs', {
+export const signatures = pgTable('signatures', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   documentId: text('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
-  signerId: text('signer_id').references(() => signers.id, { onDelete: 'set null' }),
-  action: text('action').notNull(),
+  signerName: text('signer_name').notNull(),
+  signerEmail: text('signer_email').notNull(),
+  signatureData: text('signature_data'), // base64 encoded signature image (optional for text fields)
+  fieldType: text('field_type').notNull().default('signature'), // signature, text, date, initials
+  textValue: text('text_value'), // for text, date, initials fields
+  fontFamily: text('font_family').default('Arial'),
+  fontSize: real('font_size').default(14),
+  signatureType: text('signature_type').notNull().default('drawn'), // drawn, typed, uploaded
+  positionX: real('position_x').notNull(),
+  positionY: real('position_y').notNull(),
+  width: real('width').notNull().default(150),
+  height: real('height').notNull().default(60),
+  pageNumber: real('page_number').notNull().default(1),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
-  metadata: jsonb('metadata'),
+  signedAt: timestamp('signed_at').notNull().defaultNow(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const signatureEvents = pgTable('signature_events', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  documentId: text('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
+  eventType: text('event_type').notNull(), // requested, viewed, signed, completed
+  eventData: jsonb('event_data'),
+  userEmail: text('user_email'),
+  ipAddress: text('ip_address'),
+  timestamp: timestamp('timestamp').notNull().defaultNow(),
 });
 
 // Export all tables for easy access
@@ -187,11 +176,12 @@ export const schema = {
   users,
   customers,
   invoices,
+  leads,
   appointments,
   payments,
-  leads,
   documents,
   signers,
   signatureFields,
-  auditLogs,
+  signatures,
+  signatureEvents,
 };

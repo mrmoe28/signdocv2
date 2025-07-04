@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { StackProvider, StackTheme } from "@stackframe/stack";
-import { stackServerApp, isStackAuthAvailable } from "../stack";
+import { stackServerApp } from "../stack";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast";
@@ -17,8 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Job Invoicer",
-  description: "Professional invoice management system",
+  title: "Sign Docs",
+  description: "Professional digital document signing platform",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export const viewport = {
@@ -31,28 +34,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Check if Stack Auth is configured
-  const stackAuthEnabled = isStackAuthAvailable();
-
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {stackAuthEnabled && stackServerApp ? (
-          <StackProvider app={stackServerApp}>
-            <StackTheme>
-              <ToastProvider>
-                {children}
-              </ToastProvider>
-            </StackTheme>
-          </StackProvider>
-        ) : (
-          // Fallback when Stack Auth is not configured
-          <ToastProvider>
-            {children}
-          </ToastProvider>
-        )}
+        <StackProvider app={stackServerApp}>
+          <StackTheme>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </StackTheme>
+        </StackProvider>
       </body>
     </html>
   );
