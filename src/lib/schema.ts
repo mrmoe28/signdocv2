@@ -99,7 +99,7 @@ export const documents = pgTable('documents', {
   fileUrl: text('file_url').notNull(),
   status: text('status').notNull().default('draft'),
   uploadedBy: text('uploaded_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  senderEmail: text('sender_email').notNull(),
+  senderEmail: text('sender_email'),
   recipientEmail: text('recipient_email'),
   uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
   completedAt: timestamp('completed_at'),
