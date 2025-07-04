@@ -1,16 +1,8 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
-import { Upload, FileText, Eye, PenTool, Download, Trash2, Send, Mail } from 'lucide-react';
+import { Upload, FileText, Eye, Download, Trash2, Edit } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import SendDocumentModal, { SendDocumentData } from '@/components/signature/SendDocumentModal';
-
-// Dynamically import PDF components to avoid SSR issues
-const SignaturePlacement = dynamic(() => import('@/components/signature/SignaturePlacement'), {
-  ssr: false,
-  loading: () => <div className="p-8 text-center">Loading signature placement...</div>
-});
 
 interface Document {
   id: string;
@@ -25,8 +17,6 @@ interface Document {
   signers: unknown[];
 }
 
-
-
 export default function DocumentsPage() {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -39,9 +29,6 @@ export default function DocumentsPage() {
     document: null
   });
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [savedSignatures, setSavedSignatures] = useState<Set<string>>(new Set());
-  const [showSendModal, setShowSendModal] = useState(false);
-  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -100,14 +87,15 @@ export default function DocumentsPage() {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Upload successful:', result);
-        await fetchDocuments(); // Refresh the list
-        setSelectedFile(null);
 
         // Reset file input
         const fileInput = document.getElementById('file-upload') as HTMLInputElement;
         if (fileInput) {
           fileInput.value = '';
         }
+
+        // Automatically redirect to envelope preparation
+        router.push(`/documents/send/${result.document.id}`);
       } else {
         const error = await response.json();
         console.error('❌ Upload failed:', error);
@@ -118,6 +106,7 @@ export default function DocumentsPage() {
       alert('Upload failed: Network error');
     } finally {
       setUploading(false);
+      setSelectedFile(null);
     }
   };
 
@@ -141,43 +130,36 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleSendDocument = async (data: SendDocumentData) => {
-    if (!selectedDocument) return;
-
-    setSending(true);
-    try {
-      const response = await fetch(`/api/documents/${selectedDocument.id}/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (response.ok) {
-        alert('Document sent successfully to both sender and recipient!');
-        setShowSendModal(false);
-        await fetchDocuments(); // Refresh documents to show updated status
-      } else {
-        const error = await response.json();
-        alert(`Failed to send document: ${error.error}`);
-      }
-    } catch (error) {
-      console.error('Error sending document:', error);
-      alert('Failed to send document. Please try again.');
-    } finally {
-      setSending(false);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'text-green-600 bg-green-50';
+      case 'sent': return 'text-blue-600 bg-blue-50';
+      case 'draft': return 'text-gray-600 bg-gray-50';
+      default: return 'text-gray-600 bg-gray-50';
     }
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-8">Document Signing</h1>
+    <div className="container mx-auto p-6 max-w-6xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Documents</h1>
+        <p className="text-gray-600">Upload and manage your documents for digital signatures</p>
+      </div>
 
       {/* Upload Section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Upload Document</h2>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <h2 className="text-xl font-semibold mb-4">Upload New Document</h2>
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
           <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <p className="text-gray-600 mb-4">Drag and drop your PDF here, or click to browse</p>
           <input
@@ -186,91 +168,115 @@ export default function DocumentsPage() {
             onChange={handleFileUpload}
             className="hidden"
             id="file-upload"
+            disabled={uploading}
           />
           <label
             htmlFor="file-upload"
-            className="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className={`cursor-pointer inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
           >
-            {uploading ? 'Uploading...' : 'Select PDF'}
+            {uploading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Uploading...
+              </>
+            ) : (
+              'Select PDF File'
+            )}
           </label>
           {selectedFile && (
             <p className="mt-2 text-sm text-gray-600">
               Selected: {selectedFile.name}
             </p>
           )}
+          <p className="text-xs text-gray-500 mt-2">
+            PDF files up to 50MB • Automatically starts signature workflow
+          </p>
         </div>
       </div>
+
       {/* Documents List */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4">Recent Documents</h2>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold">Your Documents</h2>
+        </div>
+
         {documents.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No documents uploaded yet</p>
+          <div className="p-12 text-center">
+            <FileText className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No documents yet</h3>
+            <p className="text-gray-500">Upload your first PDF to get started with digital signatures</p>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="divide-y divide-gray-200">
             {documents.map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <FileText className="h-8 w-8 text-gray-400" />
-                  <div>
-                    <h3 className="font-semibold">{doc.name}</h3>
-                    <p className="text-sm text-gray-500">Uploaded {doc.uploadedAt}</p>
+              <div key={doc.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <FileText className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">{doc.name}</h3>
+                      <div className="flex items-center space-x-4 mt-1">
+                        <p className="text-sm text-gray-500">
+                          Uploaded {formatDate(doc.uploadedAt)}
+                        </p>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(doc.status)}`}>
+                          {doc.status}
+                        </span>
+                        {doc.signers && doc.signers.length > 0 && (
+                          <span className="text-xs text-gray-500">
+                            {doc.signers.length} signer{doc.signers.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm font-medium capitalize">{doc.status}</span>
-                  <button
-                    onClick={() => {
-                      setSelectedDocument(doc);
-                      setShowViewer(true);
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded"
-                    title="View Document"
-                  >
-                    <Eye className="h-5 w-5 text-gray-500" />
-                  </button>
-                  <button
-                    onClick={() => router.push(`/documents/send/${doc.id}`)}
-                    className="p-2 hover:bg-gray-100 rounded"
-                    title="Send Envelope (DocuSign Style)"
-                  >
-                    <Mail className="h-5 w-5 text-orange-500" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedDocument(doc);
-                      setShowSendModal(true);
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded"
-                    title="Send Document (Simple)"
-                  >
-                    <Send className="h-5 w-5 text-blue-500" />
-                  </button>
-                  {doc.status === 'draft' && (
+
+                  <div className="flex items-center space-x-2">
+                    {/* Edit/Prepare button for drafts */}
+                    {doc.status === 'draft' && (
+                      <button
+                        onClick={() => router.push(`/documents/send/${doc.id}`)}
+                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                        title="Prepare for signature"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Prepare
+                      </button>
+                    )}
+
+                    {/* View button */}
                     <button
                       onClick={() => {
                         setSelectedDocument(doc);
                         setShowViewer(true);
                       }}
-                      className="p-2 hover:bg-gray-100 rounded"
-                      title="Add Signatures"
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                      title="View document"
                     >
-                      <PenTool className="h-5 w-5 text-green-500" />
+                      <Eye className="h-5 w-5" />
                     </button>
-                  )}
-                  <button
-                    onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
-                    className="p-2 hover:bg-gray-100 rounded"
-                    title="Download PDF"
-                  >
-                    <Download className="h-5 w-5 text-purple-500" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm({ show: true, document: doc })}
-                    className="p-2 hover:bg-gray-100 rounded"
-                    title="Delete Document"
-                  >
-                    <Trash2 className="h-5 w-5 text-red-500" />
-                  </button>
+
+                    {/* Download button */}
+                    <button
+                      onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                      title="Download document"
+                    >
+                      <Download className="h-5 w-5" />
+                    </button>
+
+                    {/* Delete button */}
+                    <button
+                      onClick={() => setDeleteConfirm({ show: true, document: doc })}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      title="Delete document"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -278,17 +284,16 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      {/* Document Viewer Modal with Enhanced Signature Functionality */}
+      {/* Document Viewer Modal */}
       {showViewer && selectedDocument && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-6xl w-full h-full max-h-[90vh] overflow-auto">
             <div className="p-4 border-b flex items-center justify-between">
-              <h2 className="text-lg font-semibold">PDF Viewer - {selectedDocument.name}</h2>
+              <h2 className="text-lg font-semibold">Document Viewer - {selectedDocument.name}</h2>
               <button
                 onClick={() => {
                   setShowViewer(false);
                   setSelectedDocument(null);
-                  setSavedSignatures(new Set()); // Reset saved signatures
                 }}
                 className="text-gray-500 hover:text-gray-700 text-2xl"
               >
@@ -296,56 +301,13 @@ export default function DocumentsPage() {
               </button>
             </div>
             <div className="p-4">
-              <SignaturePlacement
-                fileUrl={selectedDocument.fileUrl}
-                onSignatureUpdate={async (signatures) => {
-                  // Save any new fields to database
-                  for (const signature of signatures) {
-                    // Skip if already saved
-                    if (savedSignatures.has(signature.id)) continue;
-
-                    // Check if field has required data
-                    const hasRequiredData = signature.type === 'signature'
-                      ? signature.signatureData
-                      : signature.textValue !== undefined;
-
-                    if (hasRequiredData) {
-                      try {
-                        const response = await fetch('/api/signatures', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            documentId: selectedDocument.id,
-                            signerName: 'Current User',
-                            signerEmail: 'user@example.com',
-                            fieldType: signature.type,
-                            signatureData: signature.signatureData || null,
-                            textValue: signature.textValue || null,
-                            fontFamily: signature.fontFamily || 'Arial',
-                            fontSize: signature.fontSize || 14,
-                            positionX: signature.x,
-                            positionY: signature.y,
-                            width: signature.width,
-                            height: signature.height,
-                            pageNumber: signature.pageNumber
-                          })
-                        });
-
-                        if (response.ok) {
-                          setSavedSignatures(prev => new Set(prev).add(signature.id));
-                          console.log(`✅ ${signature.type} field saved successfully`);
-                        } else {
-                          console.error('❌ Failed to save field:', await response.text());
-                        }
-                      } catch (error) {
-                        console.error('❌ Failed to save field:', error);
-                      }
-                    }
-                  }
-                }}
-                readOnly={false}
-                existingSignatures={[]}
-              />
+              <div className="bg-white rounded-lg">
+                <embed
+                  src={`/api/uploads${selectedDocument.fileUrl}`}
+                  type="application/pdf"
+                  className="w-full h-[600px]"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -377,17 +339,6 @@ export default function DocumentsPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Send Document Modal */}
-      {selectedDocument && (
-        <SendDocumentModal
-          isOpen={showSendModal}
-          onClose={() => setShowSendModal(false)}
-          onSend={handleSendDocument}
-          documentName={selectedDocument.name}
-          isLoading={sending}
-        />
       )}
     </div>
   );

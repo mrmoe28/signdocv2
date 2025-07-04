@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, X, Send, Eye, User, Mail, FileText } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Users, Mail, Send, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import DocuSignStyleViewer from '@/components/pdf/DocuSignStyleViewer';
 
 interface Document {
     id: string;
@@ -18,48 +19,66 @@ interface Recipient {
     email: string;
     role: 'signer' | 'approver' | 'cc';
     order: number;
+    color: string;
 }
 
 interface SignatureField {
     id: string;
     type: 'signature' | 'initial' | 'date' | 'text';
-    recipientId: string;
     x: number;
     y: number;
     width: number;
     height: number;
     page: number;
+    recipientId: string;
     required: boolean;
     label: string;
 }
 
-export default function SendDocumentPage() {
-    const params = useParams();
-    const router = useRouter();
-    const documentId = params.id as string;
+type Step = 'prepare' | 'recipients' | 'send';
 
+const RECIPIENT_COLORS = [
+    '#3b82f6', // blue
+    '#ef4444', // red
+    '#10b981', // green
+    '#f59e0b', // yellow
+    '#8b5cf6', // purple
+    '#f97316', // orange
+];
+
+export default function SendDocumentPage({ params }: { params: Promise<{ id: string }> }) {
+    const router = useRouter();
     const [document, setDocument] = useState<Document | null>(null);
+    const [currentStep, setCurrentStep] = useState<Step>('prepare');
     const [recipients, setRecipients] = useState<Recipient[]>([
-        { id: '1', name: '', email: '', role: 'signer', order: 1 }
+        {
+            id: 'recipient-1',
+            name: '',
+            email: '',
+            role: 'signer',
+            order: 1,
+            color: RECIPIENT_COLORS[0]
+        }
     ]);
     const [signatureFields, setSignatureFields] = useState<SignatureField[]>([]);
-    const [emailSubject, setEmailSubject] = useState('Please sign this document');
+    const [emailSubject, setEmailSubject] = useState('');
     const [emailMessage, setEmailMessage] = useState('');
-    const [currentStep, setCurrentStep] = useState<'recipients' | 'fields' | 'message' | 'review'>('recipients');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [sent, setSent] = useState(false);
 
     useEffect(() => {
         fetchDocument();
-    }, [documentId]);
+    }, []);
 
     const fetchDocument = async () => {
         try {
-            const response = await fetch(`/api/documents/${documentId}`);
+            const { id } = await params;
+            const response = await fetch(`/api/documents/${id}`);
             if (response.ok) {
-                const data = await response.json();
-                setDocument(data);
-                setEmailSubject(`Please sign: ${data.name}`);
+                const doc = await response.json();
+                setDocument(doc);
+                setEmailSubject(`Please sign: ${doc.name}`);
             }
         } catch (error) {
             console.error('Error fetching document:', error);
@@ -69,14 +88,15 @@ export default function SendDocumentPage() {
     };
 
     const addRecipient = () => {
-        const newOrder = Math.max(...recipients.map(r => r.order)) + 1;
-        setRecipients([...recipients, {
-            id: Date.now().toString(),
+        const newRecipient: Recipient = {
+            id: `recipient-${recipients.length + 1}`,
             name: '',
             email: '',
             role: 'signer',
-            order: newOrder
-        }]);
+            order: recipients.length + 1,
+            color: RECIPIENT_COLORS[recipients.length % RECIPIENT_COLORS.length]
+        };
+        setRecipients([...recipients, newRecipient]);
     };
 
     const updateRecipient = (id: string, field: keyof Recipient, value: string | number) => {
@@ -86,87 +106,55 @@ export default function SendDocumentPage() {
     };
 
     const removeRecipient = (id: string) => {
-        setRecipients(recipients.filter(r => r.id !== id));
-        setSignatureFields(fields => fields.filter(f => f.recipientId !== id));
-    };
-
-    const addSignatureField = (type: SignatureField['type'], recipientId: string) => {
-        const field: SignatureField = {
-            id: Date.now().toString(),
-            type,
-            recipientId,
-            x: 50,
-            y: 50,
-            width: type === 'signature' ? 200 : type === 'initial' ? 100 : 150,
-            height: type === 'signature' ? 60 : type === 'initial' ? 40 : 30,
-            page: 1,
-            required: true,
-            label: `${type.charAt(0).toUpperCase() + type.slice(1)} - ${recipients.find(r => r.id === recipientId)?.name || 'Recipient'}`
-        };
-        setSignatureFields([...signatureFields, field]);
-    };
-
-    const removeSignatureField = (fieldId: string) => {
-        setSignatureFields(fields => fields.filter(f => f.id !== fieldId));
+        if (recipients.length > 1) {
+            setRecipients(recipients.filter(r => r.id !== id));
+            // Remove fields for this recipient
+            setSignatureFields(fields => fields.filter(f => f.recipientId !== id));
+        }
     };
 
     const sendEnvelope = async () => {
+        if (!document) return;
+
         setSending(true);
         try {
-            const response = await fetch(`/api/documents/${documentId}/send-envelope`, {
+            const response = await fetch(`/api/documents/${document.id}/send-envelope`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    recipients,
+                    recipients: recipients.filter(r => r.name && r.email),
                     signatureFields,
                     emailSubject,
-                    emailMessage
+                    emailMessage,
                 }),
             });
 
             if (response.ok) {
-                router.push('/documents?sent=true');
+                setSent(true);
             } else {
-                throw new Error('Failed to send envelope');
+                const error = await response.json();
+                alert(`Failed to send envelope: ${error.error}`);
             }
         } catch (error) {
             console.error('Error sending envelope:', error);
-            alert('Failed to send document. Please try again.');
+            alert('Failed to send envelope. Please try again.');
         } finally {
             setSending(false);
         }
     };
 
-    const validateStep = () => {
+    const isStepValid = () => {
         switch (currentStep) {
-            case 'recipients':
-                return recipients.every(r => r.name.trim() && r.email.trim() && r.email.includes('@'));
-            case 'fields':
+            case 'prepare':
                 return signatureFields.length > 0;
-            case 'message':
+            case 'recipients':
+                return recipients.some(r => r.name.trim() && r.email.trim() && r.email.includes('@'));
+            case 'send':
                 return emailSubject.trim().length > 0;
-            case 'review':
-                return true;
             default:
                 return false;
-        }
-    };
-
-    const nextStep = () => {
-        const steps: typeof currentStep[] = ['recipients', 'fields', 'message', 'review'];
-        const currentIndex = steps.indexOf(currentStep);
-        if (currentIndex < steps.length - 1) {
-            setCurrentStep(steps[currentIndex + 1]);
-        }
-    };
-
-    const prevStep = () => {
-        const steps: typeof currentStep[] = ['recipients', 'fields', 'message', 'review'];
-        const currentIndex = steps.indexOf(currentStep);
-        if (currentIndex > 0) {
-            setCurrentStep(steps[currentIndex - 1]);
         }
     };
 
@@ -191,86 +179,86 @@ export default function SendDocumentPage() {
         );
     }
 
+    if (sent) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <Card className="w-full max-w-md">
+                    <CardContent className="p-8 text-center">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CheckCircle className="h-8 w-8 text-green-600" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-gray-900 mb-2">Envelope Sent!</h1>
+                        <p className="text-gray-600 mb-6">
+                            Your document has been sent to {recipients.filter(r => r.name && r.email).length} recipient(s) for signature.
+                        </p>
+                        <div className="space-y-2">
+                            <Button
+                                onClick={() => router.push('/documents')}
+                                className="w-full"
+                            >
+                                Back to Documents
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setSent(false);
+                                    setCurrentStep('prepare');
+                                }}
+                                className="w-full"
+                            >
+                                Send Another
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="bg-white border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-                        <div className="flex items-center space-x-4">
-                            <Button
-                                variant="ghost"
-                                onClick={() => router.push('/documents')}
-                                className="flex items-center gap-2"
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                                Back
-                            </Button>
-                            <div>
-                                <h1 className="text-xl font-semibold text-gray-900">Send Envelope</h1>
-                                <p className="text-sm text-gray-500">{document.name}</p>
+            {currentStep === 'prepare' && (
+                <DocuSignStyleViewer
+                    documentUrl={`/api/uploads${document.fileUrl}`}
+                    documentName={document.name}
+                    onFieldsChange={setSignatureFields}
+                    recipients={recipients}
+                    onNext={() => setCurrentStep('recipients')}
+                />
+            )}
+
+            {currentStep === 'recipients' && (
+                <div className="min-h-screen flex flex-col">
+                    {/* Header */}
+                    <div className="bg-white border-b border-gray-200">
+                        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex items-center justify-between h-16">
+                                <div className="flex items-center space-x-4">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setCurrentStep('prepare')}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <ArrowLeft className="h-4 w-4" />
+                                        Back to Prepare
+                                    </Button>
+                                    <div>
+                                        <h1 className="text-xl font-semibold text-gray-900">Add Recipients</h1>
+                                        <p className="text-sm text-gray-500">{document.name}</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <Button
-                            variant="outline"
-                            onClick={() => window.open(`/api/uploads${document.fileUrl}`, '_blank')}
-                            className="flex items-center gap-2"
-                        >
-                            <Eye className="h-4 w-4" />
-                            Preview
-                        </Button>
                     </div>
-                </div>
-            </div>
 
-            {/* Progress Steps */}
-            <div className="bg-white border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between py-4">
-                        {[
-                            { key: 'recipients', label: 'Recipients', icon: User },
-                            { key: 'fields', label: 'Prepare', icon: FileText },
-                            { key: 'message', label: 'Message', icon: Mail },
-                            { key: 'review', label: 'Send', icon: Send }
-                        ].map((step, index) => {
-                            const StepIcon = step.icon;
-                            const isActive = currentStep === step.key;
-                            const isCompleted = ['recipients', 'fields', 'message', 'review'].indexOf(currentStep) > index;
-
-                            return (
-                                <div key={step.key} className="flex items-center">
-                                    <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${isActive ? 'border-blue-600 bg-blue-600 text-white' :
-                                        isCompleted ? 'border-green-600 bg-green-600 text-white' :
-                                            'border-gray-300 bg-white text-gray-400'
-                                        }`}>
-                                        <StepIcon className="h-4 w-4" />
-                                    </div>
-                                    <span className={`ml-2 text-sm font-medium ${isActive ? 'text-blue-600' :
-                                        isCompleted ? 'text-green-600' :
-                                            'text-gray-400'
-                                        }`}>
-                                        {step.label}
-                                    </span>
-                                    {index < 3 && (
-                                        <div className={`mx-4 h-0.5 w-16 ${isCompleted ? 'bg-green-600' : 'bg-gray-300'
-                                            }`} />
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2">
-                        {/* Recipients Step */}
-                        {currentStep === 'recipients' && (
+                    {/* Content */}
+                    <div className="flex-1 py-8">
+                        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
-                                        <User className="h-5 w-5" />
-                                        Add Recipients
+                                        <Users className="h-5 w-5" />
+                                        Recipients
                                     </CardTitle>
                                     <p className="text-sm text-gray-600">
                                         Add people who need to sign or receive this document
@@ -278,43 +266,50 @@ export default function SendDocumentPage() {
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     {recipients.map((recipient, index) => (
-                                        <div key={recipient.id} className="bg-gray-50 p-4 rounded-lg">
+                                        <div key={recipient.id} className="p-4 border border-gray-200 rounded-lg">
                                             <div className="flex items-center justify-between mb-3">
-                                                <span className="text-sm font-medium text-gray-700">
-                                                    Recipient {index + 1}
-                                                </span>
+                                                <div className="flex items-center space-x-2">
+                                                    <div
+                                                        className="w-4 h-4 rounded-full"
+                                                        style={{ backgroundColor: recipient.color }}
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-700">
+                                                        Recipient {index + 1}
+                                                    </span>
+                                                </div>
                                                 {recipients.length > 1 && (
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() => removeRecipient(recipient.id)}
+                                                        className="text-red-600 hover:text-red-800"
                                                     >
-                                                        <X className="h-4 w-4" />
+                                                        Remove
                                                     </Button>
                                                 )}
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Name *
+                                                        Full Name *
                                                     </label>
                                                     <input
                                                         type="text"
                                                         value={recipient.name}
                                                         onChange={(e) => updateRecipient(recipient.id, 'name', e.target.value)}
-                                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        placeholder="Full name"
+                                                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        placeholder="Enter full name"
                                                     />
                                                 </div>
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Email *
+                                                        Email Address *
                                                     </label>
                                                     <input
                                                         type="email"
                                                         value={recipient.email}
                                                         onChange={(e) => updateRecipient(recipient.id, 'email', e.target.value)}
-                                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                         placeholder="email@example.com"
                                                     />
                                                 </div>
@@ -325,121 +320,74 @@ export default function SendDocumentPage() {
                                                     <select
                                                         value={recipient.role}
                                                         onChange={(e) => updateRecipient(recipient.id, 'role', e.target.value)}
-                                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                     >
                                                         <option value="signer">Needs to Sign</option>
                                                         <option value="approver">Needs to Approve</option>
                                                         <option value="cc">Receives a Copy</option>
                                                     </select>
                                                 </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Signing Order
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        value={recipient.order}
-                                                        onChange={(e) => updateRecipient(recipient.id, 'order', parseInt(e.target.value) || 1)}
-                                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                    />
-                                                </div>
                                             </div>
                                         </div>
                                     ))}
+
                                     <Button
-                                        onClick={addRecipient}
                                         variant="outline"
-                                        className="w-full flex items-center gap-2"
+                                        onClick={addRecipient}
+                                        className="w-full"
                                     >
-                                        <Plus className="h-4 w-4" />
                                         Add Another Recipient
                                     </Button>
-                                </CardContent>
-                            </Card>
-                        )}
 
-                        {/* Fields Step */}
-                        {currentStep === 'fields' && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <FileText className="h-5 w-5" />
-                                        Prepare Document
-                                    </CardTitle>
-                                    <p className="text-sm text-gray-600">
-                                        Add signature fields, dates, and other form fields
-                                    </p>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="bg-blue-50 p-4 rounded-lg">
-                                        <h4 className="font-medium text-blue-900 mb-2">Add Fields</h4>
-                                        <p className="text-sm text-blue-700 mb-3">
-                                            Select the type of field to add to your document:
-                                        </p>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                            {recipients.filter(r => r.role !== 'cc').map(recipient => (
-                                                <div key={recipient.id} className="space-y-2">
-                                                    <p className="text-xs font-medium text-blue-900">
-                                                        {recipient.name || `Recipient ${recipient.order}`}
-                                                    </p>
-                                                    <div className="space-y-1">
-                                                        {['signature', 'initial', 'date', 'text'].map(type => (
-                                                            <Button
-                                                                key={type}
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => addSignatureField(type as SignatureField['type'], recipient.id)}
-                                                                className="w-full text-xs"
-                                                            >
-                                                                {type.charAt(0).toUpperCase() + type.slice(1)}
-                                                            </Button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                    <div className="flex justify-end pt-4">
+                                        <Button
+                                            onClick={() => setCurrentStep('send')}
+                                            disabled={!isStepValid()}
+                                        >
+                                            Next: Review & Send
+                                        </Button>
                                     </div>
-
-                                    {signatureFields.length > 0 && (
-                                        <div>
-                                            <h4 className="font-medium text-gray-900 mb-3">Added Fields</h4>
-                                            <div className="space-y-2">
-                                                {signatureFields.map(field => (
-                                                    <div key={field.id} className="flex items-center justify-between bg-gray-50 p-3 rounded">
-                                                        <div>
-                                                            <span className="font-medium">{field.label}</span>
-                                                            <span className="text-sm text-gray-500 ml-2">
-                                                                ({field.type} - Page {field.page})
-                                                            </span>
-                                                        </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => removeSignatureField(field.id)}
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
                                 </CardContent>
                             </Card>
-                        )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                        {/* Message Step */}
-                        {currentStep === 'message' && (
+            {currentStep === 'send' && (
+                <div className="min-h-screen flex flex-col">
+                    {/* Header */}
+                    <div className="bg-white border-b border-gray-200">
+                        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex items-center justify-between h-16">
+                                <div className="flex items-center space-x-4">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setCurrentStep('recipients')}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <ArrowLeft className="h-4 w-4" />
+                                        Back to Recipients
+                                    </Button>
+                                    <div>
+                                        <h1 className="text-xl font-semibold text-gray-900">Review & Send</h1>
+                                        <p className="text-sm text-gray-500">{document.name}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 py-8">
+                        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+                            {/* Email Settings */}
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
                                         <Mail className="h-5 w-5" />
                                         Email Message
                                     </CardTitle>
-                                    <p className="text-sm text-gray-600">
-                                        Customize the email that recipients will receive
-                                    </p>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div>
@@ -456,46 +404,44 @@ export default function SendDocumentPage() {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Email Message (Optional)
+                                            Personal Message (Optional)
                                         </label>
                                         <textarea
                                             value={emailMessage}
                                             onChange={(e) => setEmailMessage(e.target.value)}
-                                            rows={4}
+                                            rows={3}
                                             className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            placeholder="Add a personal message to include with the signature request..."
+                                            placeholder="Add a personal message..."
                                         />
                                     </div>
                                 </CardContent>
                             </Card>
-                        )}
 
-                        {/* Review Step */}
-                        {currentStep === 'review' && (
+                            {/* Summary */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Send className="h-5 w-5" />
-                                        Review & Send
-                                    </CardTitle>
-                                    <p className="text-sm text-gray-600">
-                                        Review your envelope before sending
-                                    </p>
+                                    <CardTitle>Summary</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-6">
+                                <CardContent className="space-y-4">
                                     <div>
-                                        <h4 className="font-medium text-gray-900 mb-3">Recipients ({recipients.length})</h4>
+                                        <h4 className="font-medium text-gray-900 mb-2">
+                                            Recipients ({recipients.filter(r => r.name && r.email).length})
+                                        </h4>
                                         <div className="space-y-2">
-                                            {recipients.sort((a, b) => a.order - b.order).map(recipient => (
-                                                <div key={recipient.id} className="flex items-center justify-between bg-gray-50 p-3 rounded">
+                                            {recipients.filter(r => r.name && r.email).map(recipient => (
+                                                <div key={recipient.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                                    <div
+                                                        className="w-3 h-3 rounded-full"
+                                                        style={{ backgroundColor: recipient.color }}
+                                                    />
                                                     <div>
-                                                        <span className="font-medium">{recipient.name}</span>
-                                                        <span className="text-sm text-gray-500 ml-2">({recipient.email})</span>
+                                                        <div className="font-medium">{recipient.name}</div>
+                                                        <div className="text-sm text-gray-500">{recipient.email}</div>
                                                     </div>
-                                                    <div className="text-sm">
-                                                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                                    <div className="ml-auto">
+                                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
                                                             {recipient.role === 'signer' ? 'Signer' :
-                                                                recipient.role === 'approver' ? 'Approver' : 'CC'} #{recipient.order}
+                                                                recipient.role === 'approver' ? 'Approver' : 'CC'}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -504,88 +450,40 @@ export default function SendDocumentPage() {
                                     </div>
 
                                     <div>
-                                        <h4 className="font-medium text-gray-900 mb-3">Fields ({signatureFields.length})</h4>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {signatureFields.map(field => (
-                                                <div key={field.id} className="bg-gray-50 p-2 rounded text-sm">
-                                                    {field.label}
-                                                </div>
-                                            ))}
+                                        <h4 className="font-medium text-gray-900 mb-2">
+                                            Signature Fields ({signatureFields.length})
+                                        </h4>
+                                        <div className="text-sm text-gray-600">
+                                            {signatureFields.length} fields placed on the document
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <h4 className="font-medium text-gray-900 mb-3">Email</h4>
-                                        <div className="bg-gray-50 p-3 rounded">
-                                            <p className="font-medium text-sm">Subject: {emailSubject}</p>
-                                            {emailMessage && (
-                                                <p className="text-sm text-gray-600 mt-1">{emailMessage}</p>
+                                    <div className="pt-6 border-t border-gray-200">
+                                        <Button
+                                            onClick={sendEnvelope}
+                                            disabled={sending || !isStepValid()}
+                                            className="w-full flex items-center justify-center gap-2"
+                                            size="lg"
+                                        >
+                                            {sending ? (
+                                                <>
+                                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                                                    Sending Envelope...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Send className="h-5 w-5" />
+                                                    Send Envelope
+                                                </>
                                             )}
-                                        </div>
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
-                        )}
-                    </div>
-
-                    {/* Sidebar */}
-                    <div className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Document</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex items-center space-x-3">
-                                    <FileText className="h-8 w-8 text-blue-600" />
-                                    <div>
-                                        <p className="font-medium">{document.name}</p>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => window.open(`/api/uploads${document.fileUrl}`, '_blank')}
-                                            className="p-0 h-auto text-blue-600 hover:text-blue-800"
-                                        >
-                                            Preview document
-                                        </Button>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Navigation */}
-                        <div className="flex flex-col gap-3">
-                            {currentStep !== 'recipients' && (
-                                <Button
-                                    variant="outline"
-                                    onClick={prevStep}
-                                    className="w-full"
-                                >
-                                    Back
-                                </Button>
-                            )}
-
-                            {currentStep !== 'review' ? (
-                                <Button
-                                    onClick={nextStep}
-                                    disabled={!validateStep()}
-                                    className="w-full"
-                                >
-                                    Next: {currentStep === 'recipients' ? 'Prepare' :
-                                        currentStep === 'fields' ? 'Message' : 'Review'}
-                                </Button>
-                            ) : (
-                                <Button
-                                    onClick={sendEnvelope}
-                                    disabled={sending || !validateStep()}
-                                    className="w-full"
-                                >
-                                    {sending ? 'Sending...' : 'Send Envelope'}
-                                </Button>
-                            )}
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 } 
