@@ -5,11 +5,14 @@ import { existsSync } from 'fs';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { path: string[] } }
+    { params }: { params: Promise<{ path: string[] }> }
 ) {
     try {
+        // Await the params before using them
+        const { path: pathSegments } = await params;
+
         // Join the path segments
-        const filePath = params.path.join('/');
+        const filePath = pathSegments.join('/');
 
         // Security check: ensure the file path doesn't contain directory traversal
         if (filePath.includes('..') || filePath.includes('\\')) {
@@ -53,7 +56,7 @@ export async function GET(
                 break;
         }
 
-        // Create response with proper headers
+        // Create response with proper headers for PDF viewing
         const response = new NextResponse(new Uint8Array(fileBuffer), {
             status: 200,
             headers: {
@@ -63,8 +66,10 @@ export async function GET(
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type',
-                // Remove X-Frame-Options to allow PDF embedding
+                // Allow PDF embedding in iframes
                 'X-Frame-Options': 'SAMEORIGIN',
+                // Add Content-Security-Policy to allow PDF viewing
+                'Content-Security-Policy': "frame-ancestors 'self' 'unsafe-inline'",
             },
         });
 

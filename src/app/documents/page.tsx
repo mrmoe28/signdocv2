@@ -303,7 +303,7 @@ export default function DocumentsPage() {
             <div className="p-4">
               <div className="bg-white rounded-lg">
                 <embed
-                  src={`/api/uploads${selectedDocument.fileUrl}`}
+                  src={`/api/uploads/${selectedDocument.fileUrl.replace('/uploads/', '')}`}
                   type="application/pdf"
                   className="w-full h-[600px]"
                 />

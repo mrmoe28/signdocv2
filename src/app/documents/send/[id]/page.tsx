@@ -219,7 +219,7 @@ export default function SendDocumentPage({ params }: { params: Promise<{ id: str
         <div className="min-h-screen bg-gray-50">
             {currentStep === 'prepare' && (
                 <DocuSignStyleViewer
-                    documentUrl={`/api/uploads${document.fileUrl}`}
+                    documentUrl={`/api/uploads/${document.fileUrl.replace('/uploads/', '')}`}
                     documentName={document.name}
                     onFieldsChange={setSignatureFields}
                     recipients={recipients}

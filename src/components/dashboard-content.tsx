@@ -176,7 +176,9 @@ function ModernDocumentCard({ document, onView }: { document: Document; onView: 
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.open(`/api/uploads${document.fileUrl}`, '_blank');
+                  // Remove /uploads/ prefix from fileUrl since API route adds it
+                  const cleanPath = document.fileUrl.replace('/uploads/', '');
+                  window.open(`/api/uploads/${cleanPath}`, '_blank');
                 }}
                 className="text-gray-600 hover:text-gray-800 hover:bg-gray-50 h-8 px-3"
               >
