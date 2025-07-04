@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/drizzle-db';
-import { documents, signatureFields, signers } from '@/lib/schema';
+import { documents, signatureFields, signers, signatures } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { PDFDocument, rgb, StandardFonts, PDFPage, PDFFont } from 'pdf-lib';
 import { readFile } from 'fs/promises';
@@ -40,7 +40,7 @@ export async function GET(
       );
     }
 
-    // Get all signature fields for this document
+    // Get all signature fields for this document from signatureFields table
     const fields = await db
       .select({
         id: signatureFields.id,
@@ -58,6 +58,34 @@ export async function GET(
       .innerJoin(signers, eq(signatureFields.signerId, signers.id))
       .where(eq(signatureFields.documentId, documentId));
 
+    // Get all signatures from signatures table
+    const directSignatures = await db
+      .select()
+      .from(signatures)
+      .where(eq(signatures.documentId, documentId));
+
+    // Convert direct signatures to the same format as fields
+    const convertedSignatures: SignatureField[] = directSignatures.map(sig => ({
+      id: sig.id,
+      fieldType: sig.fieldType,
+      page: sig.pageNumber,
+      x: sig.positionX,
+      y: sig.positionY,
+      width: sig.width,
+      height: sig.height,
+      value: sig.signatureData || sig.textValue,
+      signerName: sig.signerName,
+      signerEmail: sig.signerEmail
+    }));
+
+    // Combine all signature data
+    const allSignatures = [...fields, ...convertedSignatures];
+
+    console.log(`📄 Processing PDF download for document: ${documentId}`);
+    console.log(`📝 Found ${fields.length} signature fields from signatureFields table`);
+    console.log(`🖊️ Found ${directSignatures.length} signatures from signatures table`);
+    console.log(`📋 Total signatures to embed: ${allSignatures.length}`);
+
     // Load the original PDF
     const pdfPath = path.join(process.cwd(), 'public', document.fileUrl);
     const existingPdfBytes = await readFile(pdfPath);
@@ -67,11 +95,16 @@ export async function GET(
     const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     // Process each signature field
-    for (const field of fields) {
+    for (const field of allSignatures) {
       const pages = pdfDoc.getPages();
       const page = pages[Math.floor(field.page) - 1]; // Pages are 0-indexed
 
-      if (!page || !field.value) continue;
+      if (!page || !field.value) {
+        console.log(`⚠️ Skipping field ${field.id}: ${!page ? 'invalid page' : 'no value'}`);
+        continue;
+      }
+
+      console.log(`🔧 Processing field ${field.id}: ${field.fieldType} on page ${field.page}`);
 
       // Convert screen coordinates to PDF coordinates
       // PDF coordinate system: (0,0) is bottom-left, Y increases upward
@@ -81,22 +114,25 @@ export async function GET(
         switch (field.fieldType) {
           case 'signature':
             await embedSignature(pdfDoc, page, field, pdfY);
+            console.log(`✅ Embedded signature for ${field.signerName}`);
             break;
 
           case 'text':
           case 'initials':
             await embedText(page, field, pdfY, helveticaFont);
+            console.log(`✅ Embedded text field: ${field.value}`);
             break;
 
           case 'date':
             await embedDate(page, field, pdfY, helveticaFont);
+            console.log(`✅ Embedded date field: ${field.value}`);
             break;
 
           default:
-            console.warn(`Unsupported field type: ${field.fieldType}`);
+            console.warn(`❌ Unsupported field type: ${field.fieldType}`);
         }
       } catch (error) {
-        console.error(`Error embedding field ${field.id}:`, error);
+        console.error(`❌ Error embedding field ${field.id}:`, error);
         // Continue with other fields if one fails
       }
     }
