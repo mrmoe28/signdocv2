@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
-import { Upload, FileText, Eye, PenTool, Download, Trash2, Send, X } from 'lucide-react';
+import { Upload, FileText, Eye, PenTool, Download, Trash2, Send } from 'lucide-react';
+import SendDocumentModal, { SendDocumentData } from '@/components/signature/SendDocumentModal';
 
 // Dynamically import PDF components to avoid SSR issues
 const SignaturePlacement = dynamic(() => import('@/components/signature/SignaturePlacement'), {
@@ -23,13 +24,7 @@ interface Document {
   signers: unknown[];
 }
 
-interface SendDocumentData {
-  senderEmail: string;
-  senderName: string;
-  recipientEmail: string;
-  recipientName: string;
-  message: string;
-}
+
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -44,13 +39,6 @@ export default function DocumentsPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [savedSignatures, setSavedSignatures] = useState<Set<string>>(new Set());
   const [showSendModal, setShowSendModal] = useState(false);
-  const [sendDocumentData, setSendDocumentData] = useState<SendDocumentData>({
-    senderEmail: '',
-    senderName: '',
-    recipientEmail: '',
-    recipientName: '',
-    message: ''
-  });
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
@@ -151,7 +139,7 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleSendDocument = async () => {
+  const handleSendDocument = async (data: SendDocumentData) => {
     if (!selectedDocument) return;
 
     setSending(true);
@@ -161,19 +149,12 @@ export default function DocumentsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(sendDocumentData),
+        body: JSON.stringify(data),
       });
 
       if (response.ok) {
         alert('Document sent successfully to both sender and recipient!');
         setShowSendModal(false);
-        setSendDocumentData({
-          senderEmail: '',
-          senderName: '',
-          recipientEmail: '',
-          recipientName: '',
-          message: ''
-        });
         await fetchDocuments(); // Refresh documents to show updated status
       } else {
         const error = await response.json();
@@ -390,119 +371,14 @@ export default function DocumentsPage() {
       )}
 
       {/* Send Document Modal */}
-      {showSendModal && selectedDocument && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Send Document</h3>
-              <button
-                onClick={() => setShowSendModal(false)}
-                className="p-2 hover:bg-gray-100 rounded"
-                disabled={sending}
-                title="Close modal"
-              >
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-600 mb-4">
-                  Send &quot;{selectedDocument.name}&quot; to both sender and recipient via email.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Sender Name
-                  </label>
-                  <input
-                    type="text"
-                    value={sendDocumentData.senderName}
-                    onChange={(e) => setSendDocumentData({ ...sendDocumentData, senderName: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Your name"
-                    disabled={sending}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Sender Email
-                  </label>
-                  <input
-                    type="email"
-                    value={sendDocumentData.senderEmail}
-                    onChange={(e) => setSendDocumentData({ ...sendDocumentData, senderEmail: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="your.email@example.com"
-                    disabled={sending}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Recipient Name
-                  </label>
-                  <input
-                    type="text"
-                    value={sendDocumentData.recipientName}
-                    onChange={(e) => setSendDocumentData({ ...sendDocumentData, recipientName: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Recipient name"
-                    disabled={sending}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Recipient Email
-                  </label>
-                  <input
-                    type="email"
-                    value={sendDocumentData.recipientEmail}
-                    onChange={(e) => setSendDocumentData({ ...sendDocumentData, recipientEmail: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="recipient@example.com"
-                    disabled={sending}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Message (Optional)
-                </label>
-                <textarea
-                  value={sendDocumentData.message}
-                  onChange={(e) => setSendDocumentData({ ...sendDocumentData, message: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Add a personal message..."
-                  rows={3}
-                  disabled={sending}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-4 mt-6">
-              <button
-                onClick={() => setShowSendModal(false)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
-                disabled={sending}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSendDocument}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                disabled={sending || !sendDocumentData.senderEmail || !sendDocumentData.senderName || !sendDocumentData.recipientEmail || !sendDocumentData.recipientName}
-              >
-                {sending ? 'Sending...' : 'Send Document'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {selectedDocument && (
+        <SendDocumentModal
+          isOpen={showSendModal}
+          onClose={() => setShowSendModal(false)}
+          onSend={handleSendDocument}
+          documentName={selectedDocument.name}
+          isLoading={sending}
+        />
       )}
     </div>
   );

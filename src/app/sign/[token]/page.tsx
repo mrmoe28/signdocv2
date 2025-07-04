@@ -6,6 +6,7 @@ import { FileText, CheckCircle, AlertCircle, Send, Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SignatureCanvas from '@/components/signature/SignatureCanvas';
+import DocumentCompletionModal, { SendRecipientsData } from '@/components/signature/DocumentCompletionModal';
 
 interface SigningSession {
   document: {
@@ -42,6 +43,8 @@ export default function SigningPage() {
   const [signaturePosition, setSignaturePosition] = useState<Position | null>(null);
   const [saving, setSaving] = useState(false);
   const [sendingNotification, setSendingNotification] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [documentCompleted, setDocumentCompleted] = useState(false);
 
   useEffect(() => {
     fetchSigningSession();
@@ -91,7 +94,7 @@ export default function SigningPage() {
       if (response.ok) {
         setSigned(true);
         setShowSaveOptions(false);
-        alert('Document saved successfully!');
+        setShowCompletionModal(true);
       } else {
         alert('Failed to save signature. Please try again.');
       }
@@ -124,12 +127,8 @@ export default function SigningPage() {
         const result = await response.json();
         setSigned(true);
         setShowSaveOptions(false);
-
-        if (result.documentCompleted) {
-          alert('Document completed! All signers have signed.');
-        } else {
-          alert('Document signed and sent to the next signer!');
-        }
+        setDocumentCompleted(result.documentCompleted || false);
+        setShowCompletionModal(true);
       } else {
         alert('Failed to save and send document. Please try again.');
       }
@@ -172,6 +171,37 @@ export default function SigningPage() {
     }
   };
 
+  const handleSendToRecipients = async (data: SendRecipientsData) => {
+    if (!session?.document?.id) return;
+
+    try {
+      const response = await fetch(`/api/documents/${session.document.id}/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          senderName: data.senderName,
+          senderEmail: data.senderEmail,
+          recipientName: data.recipientName,
+          recipientEmail: data.recipientEmail,
+          message: data.message,
+          attachSignedDocument: data.attachSignedDocument,
+        }),
+      });
+
+      if (response.ok) {
+        alert('Document sent successfully to recipients!');
+        setShowCompletionModal(false);
+      } else {
+        throw new Error('Failed to send document');
+      }
+    } catch (error) {
+      console.error('Error sending document:', error);
+      alert('Failed to send document. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -195,7 +225,7 @@ export default function SigningPage() {
     );
   }
 
-  if (signed) {
+  if (signed && !showCompletionModal) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow">
@@ -205,6 +235,12 @@ export default function SigningPage() {
             Thank you for signing this document. The process is now complete.
           </p>
           <div className="space-y-3">
+            <Button
+              onClick={() => setShowCompletionModal(true)}
+              className="w-full"
+            >
+              Send Document to Recipients
+            </Button>
             <Button
               onClick={() => window.open(`/api/documents/${session.document.id}/download`, '_blank')}
               className="w-full"
@@ -221,6 +257,19 @@ export default function SigningPage() {
             </Button>
           </div>
         </div>
+
+        {/* Document Completion Modal */}
+        {session && (
+          <DocumentCompletionModal
+            isOpen={showCompletionModal}
+            onClose={() => setShowCompletionModal(false)}
+            documentId={session.document.id}
+            documentName={session.document.name}
+            isCompleted={documentCompleted}
+            onSendToRecipients={handleSendToRecipients}
+            isLoading={sendingNotification}
+          />
+        )}
       </div>
     );
   }
