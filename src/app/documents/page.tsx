@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import { useState, useEffect } from 'react';
-import { Upload, FileText, Eye, PenTool, Download, Trash2, Send } from 'lucide-react';
+import { Upload, FileText, Eye, PenTool, Download, Trash2, Send, Mail } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import SendDocumentModal, { SendDocumentData } from '@/components/signature/SendDocumentModal';
 
 // Dynamically import PDF components to avoid SSR issues
@@ -27,6 +28,7 @@ interface Document {
 
 
 export default function DocumentsPage() {
+  const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -227,12 +229,19 @@ export default function DocumentsPage() {
                     <Eye className="h-5 w-5 text-gray-500" />
                   </button>
                   <button
+                    onClick={() => router.push(`/documents/send/${doc.id}`)}
+                    className="p-2 hover:bg-gray-100 rounded"
+                    title="Send Envelope (DocuSign Style)"
+                  >
+                    <Mail className="h-5 w-5 text-orange-500" />
+                  </button>
+                  <button
                     onClick={() => {
                       setSelectedDocument(doc);
                       setShowSendModal(true);
                     }}
                     className="p-2 hover:bg-gray-100 rounded"
-                    title="Send Document"
+                    title="Send Document (Simple)"
                   >
                     <Send className="h-5 w-5 text-blue-500" />
                   </button>
