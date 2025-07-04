@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { FileUpload } from '@/components/ui/file-upload';
-import { 
+import {
   Calendar,
   Clock,
   MapPin,
@@ -70,7 +70,7 @@ export function SchedulePage() {
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [showNewEventForm, setShowNewEventForm] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
-  const [selectedDayEvents, setSelectedDayEvents] = useState<{date: string, events: ScheduleEvent[]} | null>(null);
+  const [selectedDayEvents, setSelectedDayEvents] = useState<{ date: string, events: ScheduleEvent[] } | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [appointments, setAppointments] = useState<ScheduleEvent[]>([]);
@@ -147,8 +147,8 @@ export function SchedulePage() {
   const filteredEvents = appointments.filter(event => {
     const matchesType = filterType === 'all' || event.type === filterType;
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.location.toLowerCase().includes(searchTerm.toLowerCase());
+      event.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.location.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesType && matchesSearch;
   });
 
@@ -161,17 +161,17 @@ export function SchedulePage() {
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    
+
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-    
+
     // Add all days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(day);
     }
-    
+
     return days;
   };
 
@@ -191,7 +191,7 @@ export function SchedulePage() {
   const handleDayClick = (day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const existingEvents = getEventsForDate(day);
-    
+
     if (existingEvents.length > 0) {
       // If there are existing events, show them in a list dialog
       setSelectedDayEvents({
@@ -218,7 +218,7 @@ export function SchedulePage() {
       });
       return;
     }
-    
+
     setSaving(true);
     try {
       // Handle photo upload by converting to base64 (in production, upload to cloud storage)
@@ -372,8 +372,8 @@ export function SchedulePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => window.history.back()}
             className="flex items-center gap-2"
@@ -495,27 +495,38 @@ export function SchedulePage() {
                   {day}
                 </div>
               ))}
-              
+
               {/* Calendar days */}
               {getDaysInMonth(currentDate).map((day, index) => {
                 if (!day) {
                   return <div key={`empty-${index}`} className="p-2 h-24"></div>;
                 }
-                
+
                 const dayEvents = getEventsForDate(day);
-                const isToday = new Date().getDate() === day && 
-                               new Date().getMonth() === currentDate.getMonth() &&
-                               new Date().getFullYear() === currentDate.getFullYear();
-                
+                const isToday = new Date().getDate() === day &&
+                  new Date().getMonth() === currentDate.getMonth() &&
+                  new Date().getFullYear() === currentDate.getFullYear();
+
                 return (
                   <div
                     key={`${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`}
-                    className={`p-2 h-24 border border-gray-200 cursor-pointer ${isToday ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}
+                    className={`p-2 h-24 border border-gray-200 cursor-pointer relative ${isToday
+                        ? 'bg-blue-100 border-blue-500 shadow-md ring-2 ring-blue-300'
+                        : 'hover:bg-gray-50'
+                      }`}
                     onClick={() => handleDayClick(day)}
                   >
-                    <div className={`text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
+                    <div className={`text-sm font-bold relative ${isToday
+                        ? 'text-blue-700 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center'
+                        : 'text-gray-900'
+                      }`}>
                       {day}
                     </div>
+                    {isToday && (
+                      <div className="absolute top-1 right-1">
+                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                      </div>
+                    )}
                     <div className="mt-1 space-y-1">
                       {dayEvents.slice(0, 2).map(event => (
                         <div
@@ -563,7 +574,7 @@ export function SchedulePage() {
                         {event.priority}
                       </Badge>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4" />
@@ -582,7 +593,7 @@ export function SchedulePage() {
                         <span className="truncate">{event.location}</span>
                       </div>
                     </div>
-                    
+
                     {event.estimatedValue && (
                       <div className="mt-2 text-sm">
                         <span className="text-gray-600">Estimated Value: </span>
@@ -591,7 +602,7 @@ export function SchedulePage() {
                         </span>
                       </div>
                     )}
-                    
+
                     {event.notes && (
                       <div className="mt-2 text-sm text-gray-600">
                         <span className="font-medium">Notes: </span>
@@ -599,7 +610,7 @@ export function SchedulePage() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm">
                       <Edit className="h-4 w-4" />
@@ -787,7 +798,7 @@ export function SchedulePage() {
                   {selectedEvent.priority}
                 </Badge>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-gray-500" />
@@ -806,7 +817,7 @@ export function SchedulePage() {
                   <span>{selectedEvent.location}</span>
                 </div>
               </div>
-              
+
               {selectedEvent.estimatedValue && (
                 <div className="p-3 bg-green-50 rounded">
                   <span className="text-sm text-gray-600">Estimated Value: </span>
@@ -815,7 +826,7 @@ export function SchedulePage() {
                   </span>
                 </div>
               )}
-              
+
               {selectedEvent.notes && (
                 <div>
                   <Label>Notes</Label>
@@ -835,17 +846,17 @@ export function SchedulePage() {
                   </div>
                 </div>
               )}
-              
+
               <div className="flex justify-end gap-3 pt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   disabled={deleting === selectedEvent.id}
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => handleDeleteEvent(selectedEvent.id)}
                   disabled={deleting === selectedEvent.id}
                   className="text-red-600 hover:text-red-700"
@@ -870,11 +881,11 @@ export function SchedulePage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>
-                  Appointments for {new Date(selectedDayEvents.date).toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
+                  Appointments for {new Date(selectedDayEvents.date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
                   })}
                 </CardTitle>
                 <Button variant="outline" size="sm" onClick={() => setSelectedDayEvents(null)}>
@@ -900,7 +911,7 @@ export function SchedulePage() {
                             {event.type}
                           </Badge>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4" />
@@ -920,7 +931,7 @@ export function SchedulePage() {
                             </Badge>
                           </div>
                         </div>
-                        
+
                         {event.estimatedValue && (
                           <div className="mt-2 text-sm">
                             <span className="text-gray-600">Estimated Value: </span>
@@ -934,12 +945,12 @@ export function SchedulePage() {
                   </CardContent>
                 </Card>
               ))}
-              
+
               <div className="flex justify-between items-center pt-4 border-t">
                 <span className="text-sm text-gray-600">
                   {selectedDayEvents.events.length} appointment{selectedDayEvents.events.length !== 1 ? 's' : ''}
                 </span>
-                <Button 
+                <Button
                   onClick={() => {
                     setNewEvent(prev => ({
                       ...prev,

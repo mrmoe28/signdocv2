@@ -1,81 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '@/lib/auth';
-
-const prisma = new PrismaClient();
-
-// Helper function to get authenticated user or default admin
-async function getAuthenticatedUser(req: NextRequest) {
-  const token = req.cookies.get('auth-token')?.value;
-  
-  let userId = null;
-  
-  // Try to get user from token first
-  if (token) {
-    const decoded = verifyToken(token);
-    if (decoded) {
-      // Verify the user actually exists
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId }
-      });
-      if (user) {
-        userId = user.id;
-      }
-    }
-  }
-  
-  // If no valid token/user, use the default admin user
-  if (!userId) {
-    const defaultUser = await prisma.user.findFirst({
-      where: { email: 'admin@ekosolar.com' }
-    });
-    
-    if (!defaultUser) {
-      throw new Error('No default admin user found. Please set up the admin user first.');
-    }
-    
-    userId = defaultUser.id;
-  }
-  
-  return userId;
-}
+import { getAuthenticatedUser } from '@/lib/stack-auth-helpers';
+import { drizzleDb as db } from '@/lib/db';
+import { customers } from '@/lib/schema';
+import { nanoid } from 'nanoid';
+import { eq } from 'drizzle-orm';
 
 // GET /api/customers - Get all customers
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const userId = await getAuthenticatedUser(req);
+    // Get authenticated user from Stack Auth
+    const user = await getAuthenticatedUser();
 
-    // Get customers for the authenticated user
-    const customers = await prisma.customer.findMany({
-      where: {
-        userId: userId
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    return NextResponse.json({ customers });
+    // Fetch customers for the authenticated user
+    const customersList = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.userId, user.id));
 
+    return NextResponse.json(customersList);
   } catch (error) {
-    console.error('Get customers error:', error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Failed to fetch customers' 
-    }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    console.error('Error fetching customers:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 // POST /api/customers - Create a new customer
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const userId = await getAuthenticatedUser(req);
+    // Get authenticated user from Stack Auth
+    const user = await getAuthenticatedUser();
 
-    const requestBody = await req.json();
-    console.log('📋 Customer creation request:', requestBody);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
+    const body = await request.json();
     const {
+      name,
+      email,
+      phone,
+      company,
+      address,
+      contactPerson,
+      customerType = 'residential',
+      notifyByEmail = true,
+      notifyBySmsText = true
+    } = body;
+
+    if (!name || !email) {
+      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
+    }
+
+    // Create new customer
+    const newCustomer = {
+      id: nanoid(),
+      name,
+      email,
+      phone: phone || null,
+      company: company || null,
+      address: address || null,
+      contactPerson: contactPerson || null,
+      customerType,
+      notifyByEmail,
+      notifyBySmsText,
+      userId: user.id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const [customer] = await db
+      .insert(customers)
+      .values(newCustomer)
+      .returning();
+
+    return NextResponse.json(customer, { status: 201 });
+  } catch (error) {
+    console.error('Error creating customer:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    // Get authenticated user from Stack Auth
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const {
+      id,
       name,
       email,
       phone,
@@ -85,98 +105,37 @@ export async function POST(req: NextRequest) {
       customerType,
       notifyByEmail,
       notifyBySmsText
-    } = requestBody;
+    } = body;
 
-    // Validation
-    if (!name || !email) {
-      console.log('❌ Validation failed: Missing name or email');
-      return NextResponse.json({ 
-        error: 'Name and email are required' 
-      }, { status: 400 });
+    if (!id || !name || !email) {
+      return NextResponse.json({ error: 'ID, name and email are required' }, { status: 400 });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      console.log('❌ Validation failed: Invalid email format');
-      return NextResponse.json({ 
-        error: 'Please provide a valid email address' 
-      }, { status: 400 });
+    // Update customer (only if it belongs to the authenticated user)
+    const [updatedCustomer] = await db
+      .update(customers)
+      .set({
+        name,
+        email,
+        phone: phone || null,
+        company: company || null,
+        address: address || null,
+        contactPerson: contactPerson || null,
+        customerType: customerType || 'residential',
+        notifyByEmail: notifyByEmail !== undefined ? notifyByEmail : true,
+        notifyBySmsText: notifyBySmsText !== undefined ? notifyBySmsText : true,
+        updatedAt: new Date()
+      })
+      .where(eq(customers.id, id))
+      .returning();
+
+    if (!updatedCustomer) {
+      return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    console.log('🔍 Checking for existing customer with email:', normalizedEmail);
-
-    // Check if customer with this email already exists for this user
-    const existingCustomer = await prisma.customer.findFirst({
-      where: {
-        email: normalizedEmail,
-        userId: userId
-      }
-    });
-
-    if (existingCustomer) {
-      console.log('❌ Customer already exists:', existingCustomer.id, existingCustomer.name);
-      return NextResponse.json({ 
-        error: `A customer with email "${normalizedEmail}" already exists: ${existingCustomer.name}`,
-        existingCustomer: {
-          id: existingCustomer.id,
-          name: existingCustomer.name,
-          email: existingCustomer.email
-        }
-      }, { status: 409 });
-    }
-
-    // Prepare customer data with proper defaults
-    const customerData = {
-      name: name.trim(),
-      email: normalizedEmail,
-      phone: phone ? phone.trim() : null,
-      company: company ? company.trim() : null,
-      address: address ? address.trim() : null,
-      contactPerson: contactPerson ? contactPerson.trim() : null,
-      customerType: customerType || 'residential',
-      notifyByEmail: notifyByEmail !== false, // default to true
-      notifyBySmsText: notifyBySmsText !== false, // default to true
-      userId: userId
-    };
-
-    console.log('💾 Creating customer with data:', customerData);
-
-    // Create the customer
-    const customer = await prisma.customer.create({
-      data: customerData
-    });
-
-    console.log('✅ Customer created successfully:', customer.id, customer.name);
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Customer created successfully',
-      customer 
-    });
-
+    return NextResponse.json(updatedCustomer);
   } catch (error) {
-    console.error('❌ Create customer error:', error);
-    
-    // Provide more specific error messages
-    if (error instanceof Error) {
-      if (error.message.includes('foreign key constraint')) {
-        return NextResponse.json({ 
-          error: 'Database error: User authentication failed. Please try again.' 
-        }, { status: 500 });
-      }
-      if (error.message.includes('Unique constraint')) {
-        return NextResponse.json({ 
-          error: 'A customer with this email already exists.' 
-        }, { status: 409 });
-      }
-    }
-    
-    return NextResponse.json({ 
-      error: 'Failed to create customer. Please try again.' 
-    }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    console.error('Error updating customer:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

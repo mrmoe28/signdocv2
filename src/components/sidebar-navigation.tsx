@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   Plus,
-  Calendar
+  Calendar,
+  PenTool
 } from 'lucide-react';
 
 interface SidebarNavigationProps {
@@ -25,6 +26,7 @@ interface SidebarNavigationProps {
 
 const navigationItems = [
   { id: 'home', label: 'Dashboard', icon: Home },
+  { id: 'documents', label: 'Documents', icon: PenTool, isLink: true, href: '/documents' },
   { id: 'invoices', label: 'All Invoices', icon: FileText, isLink: true, href: '/invoices' },
   { id: 'create-invoice', label: 'Create Invoice', icon: Plus, isLink: true, href: '/invoices/create' },
   { id: 'schedule', label: 'Schedule', icon: Calendar, isLink: true, href: '/schedule' },

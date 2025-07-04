@@ -51,10 +51,19 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
       if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
 
       const response = await fetch(`/api/invoices?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+
       const data = await response.json();
-      setInvoices(data.invoices);
+
+      // Ensure we always have an array, even if the API response is unexpected
+      setInvoices(Array.isArray(data.invoices) ? data.invoices : []);
     } catch (error) {
       console.error('Error fetching invoices:', error);
+      // Set empty array on error to prevent undefined access
+      setInvoices([]);
     } finally {
       setLoading(false);
     }
@@ -66,7 +75,7 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
 
   const handleDelete = async (invoiceId: string) => {
     if (!confirm('Are you sure you want to delete this invoice?')) return;
-    
+
     try {
       await fetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
       fetchInvoices(); // Refresh the list
@@ -77,13 +86,13 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
 
   const handlePayment = async (invoice: Invoice) => {
     if (invoice.status === 'Paid') return;
-    
+
     setPaymentLoading(invoice.id);
     try {
       const amount = invoice.amount || invoice.total || 0;
       const invoiceNumber = invoice.invoiceId || invoice.invoiceNumber || 'N/A';
       const customerName = invoice.customer?.name || invoice.customerName || 'Unknown';
-      
+
       const result = await createStripeCheckoutSession(
         invoice.id,
         amount,
@@ -105,20 +114,20 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
 
   const handleSendReminder = async (invoice: Invoice) => {
     if (invoice.status === 'Paid' || invoice.status === 'Draft') return;
-    
+
     try {
       const customerName = invoice.customer?.name || invoice.customerName || 'customer';
       const invoiceNumber = invoice.invoiceId || invoice.invoiceNumber || 'N/A';
-      
+
       // Simulate sending reminder email
       const success = confirm(
         `Send payment reminder to ${customerName} for invoice ${invoiceNumber}?`
       );
-      
+
       if (success) {
         // Here you would typically call an API to send the reminder
         // await fetch(`/api/invoices/${invoice.id}/reminder`, { method: 'POST' });
-        
+
         const customerEmail = invoice.customer?.email || 'customer';
         const customerName = invoice.customer?.name || invoice.customerName || 'customer';
         alert(`Payment reminder sent to ${customerEmail || customerName}`);
@@ -134,13 +143,13 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
       alert('Cannot email draft invoices. Please finalize the invoice first.');
       return;
     }
-    
+
     try {
       const customerName = invoice.customer?.name || invoice.customerName || 'customer';
       const customerEmail = invoice.customer?.email || `${customerName.toLowerCase().replace(/\s+/g, '.')}@example.com`;
       const invoiceNumber = invoice.invoiceId || invoice.invoiceNumber || 'N/A';
       const amount = invoice.amount || invoice.total || 0;
-      
+
       const response = await fetch(`/api/invoices/${invoice.id}/send-email`, {
         method: 'POST',
         headers: {
@@ -191,12 +200,15 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
     }
   };
 
+  // Ensure invoices is always an array for calculations
+  const safeInvoices = Array.isArray(invoices) ? invoices : [];
+
   const statusCounts = {
-    all: invoices.length,
-    draft: invoices.filter(inv => inv.status === 'Draft').length,
-    sent: invoices.filter(inv => inv.status === 'Sent').length,
-    paid: invoices.filter(inv => inv.status === 'Paid').length,
-    overdue: invoices.filter(inv => inv.status === 'Overdue').length,
+    all: safeInvoices.length,
+    draft: safeInvoices.filter(inv => inv.status === 'Draft').length,
+    sent: safeInvoices.filter(inv => inv.status === 'Sent').length,
+    paid: safeInvoices.filter(inv => inv.status === 'Paid').length,
+    overdue: safeInvoices.filter(inv => inv.status === 'Overdue').length,
   };
 
   return (
@@ -265,7 +277,7 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
             </div>
             <Select
               value={filters.status}
-              onValueChange={(value) => 
+              onValueChange={(value) =>
                 setFilters(prev => ({ ...prev, status: value as InvoiceFilters['status'] }))
               }
             >
@@ -283,7 +295,7 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
             </Select>
             <Select
               value={filters.sortBy}
-              onValueChange={(value) => 
+              onValueChange={(value) =>
                 setFilters(prev => ({ ...prev, sortBy: value as InvoiceFilters['sortBy'] }))
               }
             >
@@ -300,7 +312,7 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
             </Select>
             <Select
               value={filters.sortOrder}
-              onValueChange={(value) => 
+              onValueChange={(value) =>
                 setFilters(prev => ({ ...prev, sortOrder: value as InvoiceFilters['sortOrder'] }))
               }
             >
@@ -334,14 +346,14 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoices.length === 0 ? (
+                {safeInvoices.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No invoices found. Create your first invoice to get started.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  invoices.map((invoice) => (
+                  safeInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">
                         {invoice.invoiceId || invoice.invoiceNumber}
@@ -386,7 +398,7 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          
+
                           {/* Email & Download Actions */}
                           <Button
                             variant="ghost"
@@ -407,7 +419,7 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          
+
                           {/* Payment Actions */}
                           {invoice.status !== 'Paid' && invoice.status !== 'Draft' && (
                             <>
@@ -433,7 +445,7 @@ export function InvoiceList({ onCreateNew, onViewInvoice, onEditInvoice }: Invoi
                               </Button>
                             </>
                           )}
-                          
+
                           {/* Delete Action */}
                           <Button
                             variant="ghost"

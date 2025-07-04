@@ -23,17 +23,20 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Customer } from '@/lib/types';
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  Mail, 
-  Phone, 
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Eye,
+  Mail,
+  Phone,
   MapPin,
   Building,
-  User
+  User,
+  Upload,
+  Download,
+  FileText
 } from 'lucide-react';
 import { CustomerForm } from '@/components/customer-form';
 
@@ -64,6 +67,15 @@ export function CustomersPage() {
   });
   const [formLoading, setFormLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [csvUploadOpen, setCsvUploadOpen] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([]);
+  const [importResults, setImportResults] = useState<{
+    successful: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
 
   useEffect(() => {
     fetchCustomers();
@@ -203,7 +215,7 @@ export function CustomersPage() {
 
       if (!response.ok) {
         console.error('❌ API Error:', response.status, responseData);
-        
+
         if (response.status === 409) {
           // Handle duplicate customer error
           const errorMessage = responseData.error || 'A customer with this email already exists';
@@ -252,6 +264,73 @@ export function CustomersPage() {
     }
   };
 
+  // CSV Upload Functions
+  const handleCsvFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'text/csv') {
+      setCsvFile(file);
+      parseCsvPreview(file);
+    }
+  };
+
+  const parseCsvPreview = async (file: File) => {
+    const text = await file.text();
+    const lines = text.split('\n');
+    const headers = lines[0]?.split(',').map(h => h.trim());
+    const preview = lines.slice(1, 6).map(line => {
+      const values = line.split(',').map(v => v.trim());
+      const row: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index] || '';
+      });
+      return row;
+    }).filter(row => Object.values(row).some(val => val));
+    setCsvPreview(preview);
+  };
+
+  const handleCsvUpload = async () => {
+    if (!csvFile) return;
+
+    setCsvUploading(true);
+    const formData = new FormData();
+    formData.append('file', csvFile);
+
+    try {
+      const response = await fetch('/api/customers/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      setImportResults(result);
+      await fetchCustomers();
+    } catch (error) {
+      console.error('Error importing CSV:', error);
+      setImportResults({
+        successful: 0,
+        failed: 1,
+        errors: ['Failed to import CSV file']
+      });
+    } finally {
+      setCsvUploading(false);
+    }
+  };
+
+  const downloadCsvTemplate = () => {
+    const headers = ['name', 'email', 'phone', 'company', 'address', 'customerType'];
+    const csvContent = headers.join(',') + '\n' +
+      'John Doe,john@example.com,555-1234,Acme Corp,123 Main St,commercial\n' +
+      'Jane Smith,jane@example.com,555-5678,,456 Oak Ave,residential';
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'customers-template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -271,14 +350,134 @@ export function CustomersPage() {
           <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
           <p className="text-gray-600">Manage your customer database</p>
         </div>
-        <Button 
-          className="bg-green-600 hover:bg-green-700"
-          onClick={() => handleOpenForm()}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Customer
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={downloadCsvTemplate}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Template
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setCsvUploadOpen(true)}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import CSV
+          </Button>
+          <Button
+            className="bg-green-600 hover:bg-green-700"
+            onClick={() => handleOpenForm()}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Customer
+          </Button>
+        </div>
       </div>
+
+      {/* CSV Upload Modal */}
+      <Dialog open={csvUploadOpen} onOpenChange={setCsvUploadOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Import Customers from CSV
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCsvFileChange}
+                className="hidden"
+                id="csv-upload"
+              />
+              <Label htmlFor="csv-upload" className="cursor-pointer">
+                <div className="flex flex-col items-center gap-2">
+                  <Upload className="h-8 w-8 text-gray-400" />
+                  <p className="text-lg font-medium">Choose CSV file</p>
+                  <p className="text-sm text-gray-500">
+                    Select a CSV file with customer data
+                  </p>
+                </div>
+              </Label>
+              {csvFile && (
+                <p className="mt-2 text-sm text-green-600">
+                  Selected: {csvFile.name}
+                </p>
+              )}
+            </div>
+
+            {csvPreview.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Preview (first 5 rows):</h4>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {Object.keys(csvPreview[0] || {}).map(header => (
+                          <TableHead key={header}>{header}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {csvPreview.map((row, index) => (
+                        <TableRow key={index}>
+                          {Object.values(row).map((value, idx) => (
+                            <TableCell key={idx}>{value as string}</TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+
+            {importResults && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Import Results:</h4>
+                <p className="text-sm text-green-600">
+                  ✅ {importResults.successful} customers imported successfully
+                </p>
+                {importResults.failed > 0 && (
+                  <p className="text-sm text-red-600">
+                    ❌ {importResults.failed} customers failed to import
+                  </p>
+                )}
+                {importResults.errors.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm font-medium text-red-600">Errors:</p>
+                    <ul className="text-sm text-red-600 list-disc list-inside">
+                      {importResults.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => {
+                setCsvUploadOpen(false);
+                setCsvFile(null);
+                setCsvPreview([]);
+                setImportResults(null);
+              }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCsvUpload}
+                disabled={!csvFile || csvUploading}
+              >
+                {csvUploading ? 'Importing...' : 'Import Customers'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Customer Form */}
       <CustomerForm
@@ -303,7 +502,7 @@ export function CustomersPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -319,7 +518,7 @@ export function CustomersPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -335,7 +534,7 @@ export function CustomersPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -383,13 +582,13 @@ export function CustomersPage() {
                 {searchTerm ? 'No customers found' : 'No customers yet'}
               </h3>
               <p className="text-gray-500 mb-4">
-                {searchTerm 
-                  ? 'Try adjusting your search terms' 
+                {searchTerm
+                  ? 'Try adjusting your search terms'
                   : 'Get started by adding your first customer'
                 }
               </p>
               {!searchTerm && (
-                <Button 
+                <Button
                   className="bg-green-600 hover:bg-green-700"
                   onClick={() => handleOpenForm()}
                 >
@@ -521,27 +720,27 @@ export function CustomersPage() {
                   )}
                 </div>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <Mail className="h-4 w-4 text-gray-400" />
                   <span>{viewingCustomer.email}</span>
                 </div>
-                
+
                 {viewingCustomer.phone && (
                   <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-gray-400" />
                     <span>{viewingCustomer.phone}</span>
                   </div>
                 )}
-                
+
                 {viewingCustomer.contactPerson && (
                   <div className="flex items-center gap-3">
                     <User className="h-4 w-4 text-gray-400" />
                     <span>Contact: {viewingCustomer.contactPerson}</span>
                   </div>
                 )}
-                
+
                 {viewingCustomer.address && (
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-gray-400 mt-1" />
@@ -549,7 +748,7 @@ export function CustomersPage() {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex gap-3 pt-4">
                 <Button
                   variant="outline"

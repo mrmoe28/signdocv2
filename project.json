@@ -1,0 +1,20 @@
+{
+  "project_name": "DocuSign Clone",
+  "owner": "Moe",
+  "model": "claude-3.5-sonnet",
+  "memory_enabled": true,
+  "default_behavior": {
+    "continue_from_last_session": true,
+    "avoid_repetition": true,
+    "assume_local_stack": true,
+    "tools_to_avoid": ["Supabase", "Prisma"],
+    "pending_features": [
+      "Signature preview before submission",
+      "Sender final PDF download"
+    ],
+    "auto_suggest_next_step": true,
+    "format": "Cursor-ready code blocks"
+  },
+  "status": "in_progress",
+  "last_completed": "Sender notification on complete"
+}

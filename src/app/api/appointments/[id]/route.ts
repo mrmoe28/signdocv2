@@ -7,35 +7,35 @@ const prisma = new PrismaClient();
 // DELETE /api/appointments/[id] - Delete an appointment
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get auth token from cookies
     const token = req.cookies.get('auth-token')?.value;
-    
+
     let userId;
-    
+
     if (token) {
       const decoded = verifyToken(token);
       if (decoded) {
         userId = decoded.userId;
       }
     }
-    
+
     // If no valid token, use the default admin user
     if (!userId) {
       const defaultUser = await prisma.user.findFirst({
         where: { email: 'admin@ekosolar.com' }
       });
-      
+
       if (!defaultUser) {
         return NextResponse.json({ error: 'No user found' }, { status: 401 });
       }
-      
+
       userId = defaultUser.id;
     }
 
-    const appointmentId = params.id;
+    const { id: appointmentId } = await params;
 
     // Check if appointment exists and belongs to the user
     const existingAppointment = await prisma.appointment.findFirst({
@@ -46,8 +46,8 @@ export async function DELETE(
     });
 
     if (!existingAppointment) {
-      return NextResponse.json({ 
-        error: 'Appointment not found or you do not have permission to delete it' 
+      return NextResponse.json({
+        error: 'Appointment not found or you do not have permission to delete it'
       }, { status: 404 });
     }
 
@@ -58,15 +58,15 @@ export async function DELETE(
       }
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Appointment deleted successfully' 
+    return NextResponse.json({
+      success: true,
+      message: 'Appointment deleted successfully'
     });
 
   } catch (error) {
     console.error('Delete appointment error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to delete appointment. Please try again.' 
+    return NextResponse.json({
+      error: 'Failed to delete appointment. Please try again.'
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();
@@ -76,35 +76,35 @@ export async function DELETE(
 // PUT /api/appointments/[id] - Update an appointment
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get auth token from cookies
     const token = req.cookies.get('auth-token')?.value;
-    
+
     let userId;
-    
+
     if (token) {
       const decoded = verifyToken(token);
       if (decoded) {
         userId = decoded.userId;
       }
     }
-    
+
     // If no valid token, use the default admin user
     if (!userId) {
       const defaultUser = await prisma.user.findFirst({
         where: { email: 'admin@ekosolar.com' }
       });
-      
+
       if (!defaultUser) {
         return NextResponse.json({ error: 'No user found' }, { status: 401 });
       }
-      
+
       userId = defaultUser.id;
     }
 
-    const appointmentId = params.id;
+    const { id: appointmentId } = await params;
 
     // Check if appointment exists and belongs to the user
     const existingAppointment = await prisma.appointment.findFirst({
@@ -115,8 +115,8 @@ export async function PUT(
     });
 
     if (!existingAppointment) {
-      return NextResponse.json({ 
-        error: 'Appointment not found or you do not have permission to update it' 
+      return NextResponse.json({
+        error: 'Appointment not found or you do not have permission to update it'
       }, { status: 404 });
     }
 
@@ -141,8 +141,8 @@ export async function PUT(
     if (date) {
       appointmentDate = new Date(date);
       if (isNaN(appointmentDate.getTime())) {
-        return NextResponse.json({ 
-          error: 'Invalid date format' 
+        return NextResponse.json({
+          error: 'Invalid date format'
         }, { status: 400 });
       }
     }
@@ -169,16 +169,16 @@ export async function PUT(
       }
     });
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: 'Appointment updated successfully',
-      appointment: updatedAppointment 
+      appointment: updatedAppointment
     });
 
   } catch (error) {
     console.error('Update appointment error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to update appointment. Please try again.' 
+    return NextResponse.json({
+      error: 'Failed to update appointment. Please try again.'
     }, { status: 500 });
   } finally {
     await prisma.$disconnect();
